@@ -55,6 +55,21 @@ function PageWrapper({ Component, showNavbar = true, showFooter = true, showAssi
   );
 }
 
+// Admin login wrapper
+function AdminLoginWrapper() {
+  const navigate = useNavigate();
+
+  const handleAdminLogin = () => {
+    navigate('/admin');
+  };
+
+  const handleNavigate = (page: string) => {
+    navigate(`/${page === 'home' ? '' : page}`);
+  };
+
+  return <AdminLoginPage onNavigate={handleNavigate} onAdminLogin={handleAdminLogin} />;
+}
+
 // Admin route protection
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -108,7 +123,12 @@ function AppContent() {
         <Route path="/dashboard" element={<PageWrapper Component={DashboardPage} showFooter={false} />} />
 
         {/* Admin routes */}
-        <Route path="/admin-login" element={<PageWrapper Component={AdminLoginPage} showNavbar={false} showFooter={false} showAssistant={false} />} />
+        <Route
+          path="/admin-login"
+          element={
+            <AdminLoginWrapper />
+          }
+        />
         <Route
           path="/admin"
           element={
