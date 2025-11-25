@@ -15,8 +15,16 @@ interface MedicineDetailsPageProps {
 export function MedicineDetailsPage({ onNavigate, medicineId }: MedicineDetailsPageProps) {
   const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
-  const { medicines } = useData();
+  const { medicines, loading } = useData();
   const medicine = medicines.find(m => m.id === medicineId);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-amber-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+      </div>
+    );
+  }
 
   if (!medicine) {
     return (

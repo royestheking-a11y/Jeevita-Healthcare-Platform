@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from './AuthContext';
 import { mockDoctors, mockMedicines, mockHospitals } from '../data/mockData';
 import {
   doctorsAPI, medicinesAPI, hospitalsAPI, appointmentsAPI,
@@ -118,6 +119,7 @@ export interface UserActivity {
 
 interface DataContextType {
   // Data
+  loading: boolean;
   doctors: Doctor[];
   medicines: Medicine[];
   hospitals: Hospital[];
@@ -196,42 +198,70 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [userActivities, setUserActivities] = useState<UserActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load all data from API on mount
+  const { user } = useAuth(); // Import useAuth to check login status
+
+  // Load public data on mount
   useEffect(() => {
-    const loadData = async () => {
+    const loadPublicData = async () => {
       try {
         setLoading(true);
-        const [doctorsData, medicinesData, hospitalsData, appointmentsData, prescriptionsData, paymentsData, carouselData, activitiesData] = await Promise.all([
+        // Fetch public data in parallel
+        const [doctorsData, medicinesData, hospitalsData, carouselData] = await Promise.all([
           doctorsAPI.getAll().catch(() => mockDoctors.map(d => ({ ...d, _id: d.id }))),
           medicinesAPI.getAll().catch(() => mockMedicines.map(m => ({ ...m, _id: m.id }))),
           hospitalsAPI.getAll().catch(() => mockHospitals.map(h => ({ ...h, _id: h.id }))),
-          appointmentsAPI.getAll().catch(() => []),
-          prescriptionsAPI.getAll().catch(() => []),
-          paymentsAPI.getAll().catch(() => []),
           carouselAPI.getAll().catch(() => [
             { _id: '1', id: '1', image: 'https://images.unsplash.com/photo-1666886573230-2b730505f298?w=1200', title: 'Expert Healthcare', subtitle: 'Book appointments with top specialists', cta: 'Find Doctors' },
             { _id: '2', id: '2', image: 'https://images.unsplash.com/photo-1596522016734-8e6136fe5cfa?w=1200', title: 'Fast Medicine Delivery', subtitle: 'Order medicines online', cta: 'Order Now' },
           ]),
-          activitiesAPI.getAll().catch(() => []),
         ]);
 
         setDoctors(normalizeArray(doctorsData));
         setMedicines(normalizeArray(medicinesData));
         setHospitals(normalizeArray(hospitalsData));
-        setAppointments(normalizeArray(appointmentsData));
-        setPrescriptions(normalizeArray(prescriptionsData));
-        setPayments(normalizeArray(paymentsData));
         setCarouselSlides(normalizeArray(carouselData));
-        setUserActivities(normalizeArray(activitiesData));
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Error loading public data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
+    loadPublicData();
   }, []);
+
+  // Load private data when user changes
+  useEffect(() => {
+    const loadPrivateData = async () => {
+      if (!user) {
+        // Clear private data on logout
+        setAppointments([]);
+        setPrescriptions([]);
+        setPayments([]);
+        setUserActivities([]);
+        return;
+      }
+
+      try {
+        // Fetch private data in parallel
+        const [appointmentsData, prescriptionsData, paymentsData, activitiesData] = await Promise.all([
+          appointmentsAPI.getAll().catch(() => []),
+          prescriptionsAPI.getAll().catch(() => []),
+          paymentsAPI.getAll().catch(() => []),
+          activitiesAPI.getAll().catch(() => []),
+        ]);
+
+        setAppointments(normalizeArray(appointmentsData));
+        setPrescriptions(normalizeArray(prescriptionsData));
+        setPayments(normalizeArray(paymentsData));
+        setUserActivities(normalizeArray(activitiesData));
+      } catch (error) {
+        console.error('Error loading private data:', error);
+      }
+    };
+
+    loadPrivateData();
+  }, [user]);
 
   // Doctor methods
   const addDoctor = async (doctor: Omit<Doctor, 'id'>) => {
@@ -538,6 +568,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const value: DataContextType = {
+    loading,
     doctors,
     medicines,
     hospitals,

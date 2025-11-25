@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -33,10 +33,18 @@ import { NotificationService } from './utils/notifications';
 // Wrapper component to handle navigation prop
 function PageWrapper({ Component, showNavbar = true, showFooter = true, showAssistant = true }: any) {
   const navigate = useNavigate();
+  const params = useParams();
+  const location = useLocation();
 
   const handleNavigate = (page: string, data?: any) => {
-    if (data) {
-      // For pages with data, navigate with state
+    if (page === 'doctor-profile' && data?.doctorId) {
+      navigate(`/doctor-profile/${data.doctorId}`);
+    } else if (page === 'medicine-details' && data?.medicineId) {
+      navigate(`/medicine-details/${data.medicineId}`);
+    } else if (page === 'hospital-details' && data?.hospitalId) {
+      navigate(`/hospital-details/${data.hospitalId}`);
+    } else if (data) {
+      // For other pages with data, navigate with state
       navigate(`/${page}`, { state: data });
     } else {
       navigate(`/${page === 'home' ? '' : page}`);
@@ -47,7 +55,7 @@ function PageWrapper({ Component, showNavbar = true, showFooter = true, showAssi
     <>
       {showNavbar && <Navbar onNavigate={handleNavigate} currentPage="" />}
       <main className="flex-1">
-        <Component onNavigate={handleNavigate} />
+        <Component onNavigate={handleNavigate} {...params} {...location.state} />
       </main>
       {showFooter && <Footer onNavigate={handleNavigate} />}
       {showAssistant && <JeeviAssistant onNavigate={handleNavigate} />}
