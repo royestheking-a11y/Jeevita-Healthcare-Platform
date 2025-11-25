@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { Button } from '../components/ui/button';
@@ -24,9 +25,11 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({ onNavigate }: DashboardPageProps) {
+  const { section } = useParams<{ section?: string }>();
+  const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const { payments, appointments: allAppointments, prescriptions, addPrescription } = useData();
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(section || 'profile');
   const [showPrescriptionUploadDialog, setShowPrescriptionUploadDialog] = useState(false);
   const [prescriptionImage, setPrescriptionImage] = useState<string>('');
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
@@ -70,6 +73,19 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     dateOfBirth: '',
     bio: ''
   });
+
+  // Sync activeTab with URL parameter
+  useEffect(() => {
+    if (section) {
+      setActiveTab(section);
+    }
+  }, [section]);
+
+  // Helper function to navigate to dashboard section
+  const navigateToSection = (sectionName: string) => {
+    setActiveTab(sectionName);
+    navigate(`/dashboard/${sectionName}`);
+  };
 
   // Load profile data when user is available
   useEffect(() => {
@@ -471,7 +487,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
               <CardContent className="p-6">
                 <div className="space-y-2">
                   <button
-                    onClick={() => setActiveTab('profile')}
+                    onClick={() => navigateToSection('profile')}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'profile' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
                       }`}
                   >
@@ -479,7 +495,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                     <span>Profile</span>
                   </button>
                   <button
-                    onClick={() => setActiveTab('appointments')}
+                    onClick={() => navigateToSection('appointments')}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'appointments' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
                       }`}
                   >
@@ -487,7 +503,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                     <span>Appointments</span>
                   </button>
                   <button
-                    onClick={() => setActiveTab('orders')}
+                    onClick={() => navigateToSection('orders')}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'orders' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
                       }`}
                   >
@@ -495,7 +511,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                     <span>Orders</span>
                   </button>
                   <button
-                    onClick={() => setActiveTab('addresses')}
+                    onClick={() => navigateToSection('addresses')}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'addresses' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
                       }`}
                   >
@@ -503,7 +519,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                     <span>Addresses</span>
                   </button>
                   <button
-                    onClick={() => setActiveTab('prescriptions')}
+                    onClick={() => navigateToSection('prescriptions')}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'prescriptions' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
                       }`}
                   >
@@ -511,7 +527,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                     <span>Prescriptions</span>
                   </button>
                   <button
-                    onClick={() => setActiveTab('settings')}
+                    onClick={() => navigateToSection('settings')}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'settings' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
                       }`}
                   >

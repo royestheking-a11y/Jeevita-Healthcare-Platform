@@ -121,6 +121,7 @@ function AppContent() {
         <Route path="/cart" element={<PageWrapper Component={CartPage} />} />
         <Route path="/payment" element={<PageWrapper Component={PaymentPage} />} />
         <Route path="/dashboard" element={<PageWrapper Component={DashboardPage} showFooter={false} />} />
+        <Route path="/dashboard/:section" element={<PageWrapper Component={DashboardPage} showFooter={false} />} />
 
         {/* Admin routes */}
         <Route
