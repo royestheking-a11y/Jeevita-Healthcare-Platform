@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -11,6 +12,7 @@ interface AdminLoginPageProps {
 }
 
 export function AdminLoginPage({ onNavigate, onAdminLogin }: AdminLoginPageProps) {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,11 +23,17 @@ export function AdminLoginPage({ onNavigate, onAdminLogin }: AdminLoginPageProps
 
     // Check admin credentials
     if (email === 'admin@jeevita.com' && password === 'jeevita009') {
-      setTimeout(() => {
-        toast.success('Welcome Admin! Full access granted.');
-        onAdminLogin();
+      try {
+        await login(email, password);
+        setTimeout(() => {
+          toast.success('Welcome Admin! Full access granted.');
+          onAdminLogin();
+          setLoading(false);
+        }, 500);
+      } catch (error) {
         setLoading(false);
-      }, 500);
+        toast.error('Login failed. Please try again.');
+      }
     } else {
       setLoading(false);
       toast.error('Invalid admin credentials. Please check your email and password.');
