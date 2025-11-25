@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -29,38 +30,45 @@ import { TermsOfServicePage } from './pages/TermsOfServicePage';
 import { Toaster } from './components/ui/sonner';
 import { NotificationService } from './utils/notifications';
 
-type Page =
-  | 'home'
-  | 'doctors'
-  | 'medicines'
-  | 'hospitals'
-  | 'login'
-  | 'signup'
-  | 'booking'
-  | 'cart'
-  | 'payment'
-  | 'dashboard'
-  | 'admin'
-  | 'admin-login'
-  | 'doctor-profile'
-  | 'medicine-details'
-  | 'hospital-details'
-  | 'about'
-  | 'contact'
-  | 'privacy'
-  | 'terms';
+// Wrapper component to handle navigation prop
+function PageWrapper({ Component, showNavbar = true, showFooter = true, showAssistant = true }: any) {
+  const navigate = useNavigate();
 
-interface NavigationState {
-  page: Page;
-  data?: any;
+  const handleNavigate = (page: string, data?: any) => {
+    if (data) {
+      // For pages with data, navigate with state
+      navigate(`/${page}`, { state: data });
+    } else {
+      navigate(`/${page === 'home' ? '' : page}`);
+    }
+  };
+
+  return (
+    <>
+      {showNavbar && <Navbar onNavigate={handleNavigate} currentPage="" />}
+      <main className="flex-1">
+        <Component onNavigate={handleNavigate} />
+      </main>
+      {showFooter && <Footer onNavigate={handleNavigate} />}
+      {showAssistant && <JeeviAssistant onNavigate={handleNavigate} />}
+    </>
+  );
+}
+
+// Admin route protection
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const navigate = useNavigate();
+
+  if (!isAuthenticated) {
+    return <AdminLoginPage onNavigate={(page) => navigate(`/${page}`)} onAdminLogin={() => setIsAuthenticated(true)} />;
+  }
+
+  return <>{children}</>;
 }
 
 function AppContent() {
   const { user } = useAuth();
-  const [navigation, setNavigation] = useState<NavigationState>({
-    page: 'home',
-  });
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
   // Request notification permission when user logs in
   useEffect(() => {
@@ -73,128 +81,65 @@ function AppContent() {
     }
   }, [user]);
 
-  const handleNavigate = (page: string, data?: any) => {
-    setNavigation({ page: page as Page, data });
-    window.scrollTo(0, 0);
-  };
-
-  const renderPage = () => {
-    switch (navigation.page) {
-      case 'home':
-        return <HomePage onNavigate={handleNavigate} />;
-      case 'doctors':
-        return <DoctorsPage onNavigate={handleNavigate} />;
-      case 'medicines':
-        return <MedicinesPage onNavigate={handleNavigate} />;
-      case 'hospitals':
-        return <HospitalsPage onNavigate={handleNavigate} />;
-      case 'login':
-        return <LoginPage onNavigate={handleNavigate} />;
-      case 'signup':
-        return <SignupPage onNavigate={handleNavigate} />;
-      case 'booking':
-        return (
-          <BookingPage
-            doctorId={navigation.data?.doctorId}
-            onNavigate={handleNavigate}
-          />
-        );
-      case 'cart':
-        return <CartPage onNavigate={handleNavigate} />;
-      case 'payment':
-        return (
-          <PaymentPage
-            paymentData={navigation.data}
-            onNavigate={handleNavigate}
-          />
-        );
-      case 'dashboard':
-        return <DashboardPage onNavigate={handleNavigate} />;
-      case 'admin-login':
-        return (
-          <AdminLoginPage
-            onNavigate={handleNavigate}
-            onAdminLogin={() => {
-              setIsAdminAuthenticated(true);
-              handleNavigate('admin');
-            }}
-          />
-        );
-      case 'admin':
-        if (!isAdminAuthenticated) {
-          handleNavigate('admin-login');
-          return <AdminLoginPage onNavigate={handleNavigate} onAdminLogin={() => {
-            setIsAdminAuthenticated(true);
-            handleNavigate('admin');
-          }} />;
-        }
-        return <AdminPanel onNavigate={handleNavigate} />;
-      case 'doctor-profile':
-        return (
-          <DoctorProfilePage
-            doctorId={navigation.data?.doctorId}
-            onNavigate={handleNavigate}
-          />
-        );
-      case 'medicine-details':
-        return (
-          <MedicineDetailsPage
-            medicineId={navigation.data?.medicineId}
-            onNavigate={handleNavigate}
-          />
-        );
-      case 'hospital-details':
-        return (
-          <HospitalDetailsPage
-            hospitalId={navigation.data?.hospitalId}
-            onNavigate={handleNavigate}
-          />
-        );
-      case 'about':
-        return <AboutUsPage onNavigate={handleNavigate} />;
-      case 'contact':
-        return <ContactUsPage onNavigate={handleNavigate} />;
-      case 'privacy':
-        return <PrivacyPolicyPage onNavigate={handleNavigate} />;
-      case 'terms':
-        return <TermsOfServicePage onNavigate={handleNavigate} />;
-      default:
-        return <HomePage onNavigate={handleNavigate} />;
-    }
-  };
-
   return (
-            <div className="min-h-screen flex flex-col">
-              {navigation.page !== 'admin-login' && navigation.page !== 'admin' && (
-                <Navbar
-                  onNavigate={handleNavigate}
-                  currentPage={navigation.page}
-                />
-              )}
-              <main className="flex-1">{renderPage()}</main>
-              {navigation.page !== 'admin' && navigation.page !== 'admin-login' && navigation.page !== 'dashboard' && (
-                <Footer onNavigate={handleNavigate} />
-              )}
-              {navigation.page !== 'admin-login' && navigation.page !== 'admin' && (
-                <JeeviAssistant onNavigate={handleNavigate} />
-              )}
-              <Toaster />
-            </div>
+    <div className="min-h-screen flex flex-col">
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<PageWrapper Component={HomePage} />} />
+        <Route path="/doctors" element={<PageWrapper Component={DoctorsPage} />} />
+        <Route path="/medicines" element={<PageWrapper Component={MedicinesPage} />} />
+        <Route path="/hospitals" element={<PageWrapper Component={HospitalsPage} />} />
+        <Route path="/login" element={<PageWrapper Component={LoginPage} />} />
+        <Route path="/signup" element={<PageWrapper Component={SignupPage} />} />
+        <Route path="/about" element={<PageWrapper Component={AboutUsPage} />} />
+        <Route path="/contact" element={<PageWrapper Component={ContactUsPage} />} />
+        <Route path="/privacy" element={<PageWrapper Component={PrivacyPolicyPage} />} />
+        <Route path="/terms" element={<PageWrapper Component={TermsOfServicePage} />} />
+
+        {/* Dynamic routes */}
+        <Route path="/doctor-profile" element={<PageWrapper Component={DoctorProfilePage} />} />
+        <Route path="/medicine-details" element={<PageWrapper Component={MedicineDetailsPage} />} />
+        <Route path="/hospital-details" element={<PageWrapper Component={HospitalDetailsPage} />} />
+        <Route path="/booking" element={<PageWrapper Component={BookingPage} />} />
+
+        {/* User routes */}
+        <Route path="/cart" element={<PageWrapper Component={CartPage} />} />
+        <Route path="/payment" element={<PageWrapper Component={PaymentPage} />} />
+        <Route path="/dashboard" element={<PageWrapper Component={DashboardPage} showFooter={false} />} />
+
+        {/* Admin routes */}
+        <Route path="/admin-login" element={<PageWrapper Component={AdminLoginPage} showNavbar={false} showFooter={false} showAssistant={false} />} />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <PageWrapper Component={AdminPanel} showNavbar={false} showFooter={false} showAssistant={false} />
+            </AdminRoute>
+          }
+        />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Toaster />
+    </div>
   );
 }
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <AuthProvider>
-          <CartProvider>
-            <DataProvider>
-              <AppContent />
-            </DataProvider>
-          </CartProvider>
-        </AuthProvider>
-      </LanguageProvider>
-    </ThemeProvider>
+    <BrowserRouter>
+      <ThemeProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <CartProvider>
+              <DataProvider>
+                <AppContent />
+              </DataProvider>
+            </CartProvider>
+          </AuthProvider>
+        </LanguageProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   );
 }
