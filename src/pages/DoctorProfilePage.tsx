@@ -141,9 +141,9 @@ export function DoctorProfilePage({ onNavigate, doctorId }: DoctorProfilePagePro
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600 leading-relaxed">
-                  {doctor.name} is a highly experienced {doctor.specialty} with {doctor.experience} years of practice. 
-                  Graduated with {doctor.degrees}, they have been serving patients with dedication and excellence. 
-                  Their expertise includes comprehensive patient care, accurate diagnosis, and personalized treatment plans. 
+                  {doctor.name} is a highly experienced {doctor.specialty} with {doctor.experience} years of practice.
+                  Graduated with {doctor.degrees}, they have been serving patients with dedication and excellence.
+                  Their expertise includes comprehensive patient care, accurate diagnosis, and personalized treatment plans.
                   Patients appreciate their compassionate approach and thorough explanations of medical conditions.
                 </p>
               </CardContent>

@@ -29,8 +29,8 @@ export function HospitalDetailsPage({ onNavigate, hospitalId }: HospitalDetailsP
     );
   }
 
-  const departments = hospital.departments && hospital.departments.length > 0 
-    ? hospital.departments 
+  const departments = hospital.departments && hospital.departments.length > 0
+    ? hospital.departments
     : ['Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Gynecology', 'General Surgery', 'Emergency Care', 'ICU'];
 
   const facilities = hospital.facilities && hospital.facilities.length > 0
@@ -118,15 +118,15 @@ export function HospitalDetailsPage({ onNavigate, hospitalId }: HospitalDetailsP
                   <p className="text-gray-600 leading-relaxed whitespace-pre-line">{hospital.description}</p>
                 ) : (
                   <>
-                <p className="text-gray-600 leading-relaxed mb-4">
-                  {hospital.name} is a leading healthcare institution in Bangladesh, providing comprehensive medical services 
-                  with state-of-the-art facilities and experienced medical professionals. Specializing in {hospital.specialty}, 
-                  we are committed to delivering excellence in patient care.
-                </p>
-                <p className="text-gray-600 leading-relaxed">
-                  Our hospital is equipped with modern medical technology and staffed by highly qualified doctors, nurses, 
-                  and healthcare professionals who work together to ensure the best possible outcomes for our patients.
-                </p>
+                    <p className="text-gray-600 leading-relaxed mb-4">
+                      {hospital.name} is a leading healthcare institution in Bangladesh, providing comprehensive medical services
+                      with state-of-the-art facilities and experienced medical professionals. Specializing in {hospital.specialty},
+                      we are committed to delivering excellence in patient care.
+                    </p>
+                    <p className="text-gray-600 leading-relaxed">
+                      Our hospital is equipped with modern medical technology and staffed by highly qualified doctors, nurses,
+                      and healthcare professionals who work together to ensure the best possible outcomes for our patients.
+                    </p>
                   </>
                 )}
               </CardContent>

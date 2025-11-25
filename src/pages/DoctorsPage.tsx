@@ -22,10 +22,10 @@ export function DoctorsPage({ onNavigate }: DoctorsPageProps) {
 
   const filteredDoctors = doctors.filter(doctor => {
     const matchesSearch = doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase());
+      doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSpecialty = selectedSpecialty === 'all' || doctor.specialty === selectedSpecialty;
     const matchesLocation = selectedLocation === 'all' || doctor.location === selectedLocation;
-    
+
     return matchesSearch && matchesSpecialty && matchesLocation;
   });
 
