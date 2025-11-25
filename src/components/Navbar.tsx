@@ -234,7 +234,10 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                       Admin Panel
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={logout} className="text-red-600">
+                  <DropdownMenuItem onClick={() => {
+                    logout();
+                    onNavigate('home');
+                  }} className="text-red-600">
                     {t('nav.logout')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -409,6 +412,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                   <button
                     onClick={() => {
                       logout();
+                      onNavigate('home');
                       setMobileMenuOpen(false);
                     }}
                     className="w-full text-left py-2 px-4 hover:bg-red-50 rounded-lg text-red-600 font-medium"
