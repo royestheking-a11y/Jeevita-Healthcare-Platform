@@ -72,14 +72,16 @@ function AdminLoginWrapper() {
 
 // Admin route protection
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  if (!isAuthenticated) {
-    return <AdminLoginPage onNavigate={(page) => navigate(`/${page}`)} onAdminLogin={() => setIsAuthenticated(true)} />;
+  // If user is logged in as admin, show admin panel
+  if (isAdmin) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  // Otherwise redirect to admin login
+  return <AdminLoginPage onNavigate={(page) => navigate(`/${page}`)} onAdminLogin={() => navigate('/admin')} />;
 }
 
 function AppContent() {
