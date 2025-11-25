@@ -14,18 +14,29 @@ interface BookingPageProps {
 }
 
 export function BookingPage({ doctorId, onNavigate }: BookingPageProps) {
-  const { doctors, addAppointment } = useData();
+  const { doctors, addAppointment, loading } = useData();
   const { user } = useAuth();
   const doctor = doctors.find(d => d.id === doctorId);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedTime, setSelectedTime] = useState('');
   const [consultType, setConsultType] = useState('in-person');
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+      </div>
+    );
+  }
+
   if (!doctor) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#1a202c] py-8">
-        <div className="max-w-3xl mx-auto px-4">
-          <p>Doctor not found</p>
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-100 flex items-center justify-center">
+        <div className="max-w-3xl mx-auto px-4 text-center">
+          <p className="text-xl text-gray-600 mb-4">Doctor not found</p>
+          <Button onClick={() => onNavigate('doctors')} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
+            Back to Doctors
+          </Button>
         </div>
       </div>
     );

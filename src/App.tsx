@@ -43,6 +43,8 @@ function PageWrapper({ Component, showNavbar = true, showFooter = true, showAssi
       navigate(`/medicine-details/${data.medicineId}`);
     } else if (page === 'hospital-details' && data?.hospitalId) {
       navigate(`/hospital-details/${data.hospitalId}`);
+    } else if (page === 'booking' && data?.doctorId) {
+      navigate(`/booking/${data.doctorId}`);
     } else if (data) {
       // For other pages with data, navigate with state
       navigate(`/${page}`, { state: data });
@@ -122,10 +124,10 @@ function AppContent() {
         <Route path="/terms" element={<PageWrapper Component={TermsOfServicePage} />} />
 
         {/* Dynamic routes */}
-        <Route path="/doctor-profile" element={<PageWrapper Component={DoctorProfilePage} />} />
-        <Route path="/medicine-details" element={<PageWrapper Component={MedicineDetailsPage} />} />
-        <Route path="/hospital-details" element={<PageWrapper Component={HospitalDetailsPage} />} />
-        <Route path="/booking" element={<PageWrapper Component={BookingPage} />} />
+        <Route path="/doctor-profile/:doctorId" element={<PageWrapper Component={DoctorProfilePage} />} />
+        <Route path="/medicine-details/:medicineId" element={<PageWrapper Component={MedicineDetailsPage} />} />
+        <Route path="/hospital-details/:hospitalId" element={<PageWrapper Component={HospitalDetailsPage} />} />
+        <Route path="/booking/:doctorId" element={<PageWrapper Component={BookingPage} />} />
 
         {/* User routes */}
         <Route path="/cart" element={<PageWrapper Component={CartPage} />} />

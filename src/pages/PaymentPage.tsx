@@ -28,6 +28,32 @@ export function PaymentPage({ paymentData, onNavigate }: PaymentPageProps) {
   const { addPayment, addAppointment } = useData();
   const { user } = useAuth();
   const { clearCart } = useCart();
+
+  // Handle missing payment data (e.g. on refresh)
+  if (!paymentData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-100 flex items-center justify-center">
+        <Card className="max-w-md mx-4">
+          <CardContent className="p-8 text-center">
+            <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Wallet className="h-8 w-8 text-amber-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Session Expired</h2>
+            <p className="text-gray-600 mb-6">
+              Your payment session has expired. Please start the process again.
+            </p>
+            <Button
+              onClick={() => onNavigate('home')}
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+            >
+              Return to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'bkash'>(() => {
     // For appointments, default to bKash only
     return paymentData.type === 'appointment' ? 'bkash' : 'cod';

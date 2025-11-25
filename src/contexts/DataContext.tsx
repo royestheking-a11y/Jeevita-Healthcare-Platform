@@ -207,19 +207,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
         setLoading(true);
         // Fetch public data in parallel
         const [doctorsData, medicinesData, hospitalsData, carouselData] = await Promise.all([
-          doctorsAPI.getAll().catch(() => mockDoctors.map(d => ({ ...d, _id: d.id }))),
-          medicinesAPI.getAll().catch(() => mockMedicines.map(m => ({ ...m, _id: m.id }))),
-          hospitalsAPI.getAll().catch(() => mockHospitals.map(h => ({ ...h, _id: h.id }))),
-          carouselAPI.getAll().catch(() => [
-            { _id: '1', id: '1', image: 'https://images.unsplash.com/photo-1666886573230-2b730505f298?w=1200', title: 'Expert Healthcare', subtitle: 'Book appointments with top specialists', cta: 'Find Doctors' },
-            { _id: '2', id: '2', image: 'https://images.unsplash.com/photo-1596522016734-8e6136fe5cfa?w=1200', title: 'Fast Medicine Delivery', subtitle: 'Order medicines online', cta: 'Order Now' },
-          ]),
+          doctorsAPI.getAll().catch(() => []),
+          medicinesAPI.getAll().catch(() => []),
+          hospitalsAPI.getAll().catch(() => []),
+          carouselAPI.getAll().catch(() => []),
         ]);
 
-        setDoctors(normalizeArray(doctorsData));
-        setMedicines(normalizeArray(medicinesData));
-        setHospitals(normalizeArray(hospitalsData));
-        setCarouselSlides(normalizeArray(carouselData));
+        // Use mock data if API returns empty or fails
+        setDoctors(normalizeArray(doctorsData && doctorsData.length > 0 ? doctorsData : mockDoctors.map(d => ({ ...d, _id: d.id }))));
+        setMedicines(normalizeArray(medicinesData && medicinesData.length > 0 ? medicinesData : mockMedicines.map(m => ({ ...m, _id: m.id }))));
+        setHospitals(normalizeArray(hospitalsData && hospitalsData.length > 0 ? hospitalsData : mockHospitals.map(h => ({ ...h, _id: h.id }))));
+
+        setCarouselSlides(normalizeArray(carouselData && carouselData.length > 0 ? carouselData : [
+          { _id: '1', id: '1', image: 'https://images.unsplash.com/photo-1666886573230-2b730505f298?w=1200', title: 'Expert Healthcare', subtitle: 'Book appointments with top specialists', cta: 'Find Doctors' },
+          { _id: '2', id: '2', image: 'https://images.unsplash.com/photo-1596522016734-8e6136fe5cfa?w=1200', title: 'Fast Medicine Delivery', subtitle: 'Order medicines online', cta: 'Order Now' },
+        ]));
       } catch (error) {
         console.error('Error loading public data:', error);
       } finally {
