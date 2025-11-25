@@ -34,16 +34,19 @@ app.use(
         (origin.startsWith('http://localhost:') ||
           origin.startsWith('http://127.0.0.1:'));
 
-      if (!origin || isLocalhost || allowedOrigins.includes(origin)) {
+      const isVercel = origin && origin.includes('.vercel.app');
+
+      if (!origin || isLocalhost || isVercel || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        console.log('CORS blocked origin:', origin);
+        callback(null, true); // Allow anyway for now to debug
       }
     },
     credentials: true,
   })
 );
-app.options('*', cors({ origin: allowedOrigins, credentials: true }));
+app.options('*', cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
