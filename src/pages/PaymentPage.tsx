@@ -24,13 +24,17 @@ interface PaymentPageProps {
   onNavigate: (page: string) => void;
 }
 
-export function PaymentPage({ paymentData, onNavigate }: PaymentPageProps) {
+export function PaymentPage(props: any) {
+  const { onNavigate } = props;
+  // Handle both nested paymentData (if passed that way) or flattened props (from PageWrapper spread)
+  const paymentData = props.paymentData || props;
+
   const { addPayment, addAppointment } = useData();
   const { user } = useAuth();
   const { clearCart } = useCart();
 
-  // Handle missing payment data (e.g. on refresh)
-  if (!paymentData) {
+  // Handle missing payment data (check if essential fields are missing)
+  if (!paymentData || (!paymentData.amount && !paymentData.items)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-100 flex items-center justify-center">
         <Card className="max-w-md mx-4">

@@ -188,15 +188,19 @@ const normalizeArray = <T extends { _id?: string; id?: string }>(items: T[]): (T
 };
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  // State
+  const [doctors, setDoctors] = useState<Doctor[]>(mockDoctors);
+  const [medicines, setMedicines] = useState<Medicine[]>(mockMedicines);
+  const [hospitals, setHospitals] = useState<Hospital[]>(mockHospitals);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>([]);
+  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>([
+    { _id: '1', id: '1', image: 'https://images.unsplash.com/photo-1666886573230-2b730505f298?w=1200', title: 'Expert Healthcare', subtitle: 'Book appointments with top specialists', cta: 'Find Doctors' },
+    { _id: '2', id: '2', image: 'https://images.unsplash.com/photo-1596522016734-8e6136fe5cfa?w=1200', title: 'Fast Medicine Delivery', subtitle: 'Order medicines online', cta: 'Order Now' },
+  ]);
   const [userActivities, setUserActivities] = useState<UserActivity[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start false since we have mock data
 
   const { user } = useAuth(); // Import useAuth to check login status
 

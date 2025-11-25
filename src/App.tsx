@@ -31,6 +31,17 @@ import { Toaster } from './components/ui/sonner';
 import { NotificationService } from './utils/notifications';
 
 // Wrapper component to handle navigation prop
+// Scroll to top component
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
+
 function PageWrapper({ Component, showNavbar = true, showFooter = true, showAssistant = true }: any) {
   const navigate = useNavigate();
   const params = useParams();
@@ -167,6 +178,7 @@ export default function App() {
           <AuthProvider>
             <CartProvider>
               <DataProvider>
+                <ScrollToTop />
                 <AppContent />
               </DataProvider>
             </CartProvider>
