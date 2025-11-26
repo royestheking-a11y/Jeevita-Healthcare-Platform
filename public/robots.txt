@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jeevita.vercel.app/sitemap.xml
+Host: https://jeevita.vercel.app
+
+# Disallow admin & auth pages from indexing
+Disallow: /admin
+Disallow: /admin-login
+Disallow: /login
+Disallow: /signup

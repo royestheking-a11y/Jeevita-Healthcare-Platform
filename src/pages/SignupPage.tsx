@@ -13,6 +13,8 @@ interface SignupPageProps {
   onNavigate: (page: string) => void;
 }
 
+import { SignupSeo } from '../seo-pages/SignupSeo';
+
 export function SignupPage({ onNavigate }: SignupPageProps) {
   const { signup } = useAuth();
   const [name, setName] = useState('');

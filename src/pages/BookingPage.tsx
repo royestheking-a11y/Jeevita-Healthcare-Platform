@@ -7,13 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Calendar } from '../components/ui/calendar';
 import { toast } from 'sonner';
+import { useParams } from 'react-router-dom';
+import { BookingSeo } from '../seo-pages/BookingSeo';
 
 interface BookingPageProps {
-  doctorId: string;
   onNavigate: (page: string, data?: any) => void;
 }
 
-export function BookingPage({ doctorId, onNavigate }: BookingPageProps) {
+export function BookingPage({ onNavigate }: BookingPageProps) {
+  const { doctorId } = useParams();
   const { doctors, addAppointment, loading } = useData();
   const { user } = useAuth();
   const doctor = doctors.find(d => d.id === doctorId);

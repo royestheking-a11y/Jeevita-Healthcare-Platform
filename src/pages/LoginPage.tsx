@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { OTPInput } from '../components/OTPInput';
 import { generateOTP, sendPasswordResetOTP, storeOTP, verifyOTP, clearOTP } from '../utils/emailService';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { LoginSeo } from '../seo-pages/LoginSeo';
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;

@@ -8,6 +8,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useData } from '../contexts/DataContext';
 import { Button } from '../components/ui/button';
 import { ArrowRight, Sparkles } from 'lucide-react';
+import { HomeSeo } from '../seo-pages/HomeSeo';
 
 interface HomePageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -19,6 +20,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
 
   return (
     <div className="bg-white">
+      <HomeSeo />
       {/* Hero Carousel */}
       <HeroCarousel onNavigate={onNavigate} />
 
@@ -76,8 +78,8 @@ export function HomePage({ onNavigate }: HomePageProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {medicines.slice(0, 4).map((medicine) => (
-              <MedicineCard 
-                key={medicine.id} 
+              <MedicineCard
+                key={medicine.id}
                 medicine={medicine}
                 onViewDetails={(id) => onNavigate('medicine-details', { medicineId: id })}
               />
@@ -120,7 +122,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
         <div className="absolute inset-0 bg-grid-white/10"></div>
         <div className="absolute top-0 right-0 w-96 h-96 bg-orange-400/20 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-400/20 rounded-full blur-3xl"></div>
-        
+
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
             <Sparkles className="h-4 w-4" />

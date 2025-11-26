@@ -224,9 +224,12 @@ function AppContent() {
   );
 }
 
+import { GtagLoader } from './components/GtagLoader';
+
 export default function App() {
   return (
     <BrowserRouter>
+      <GtagLoader />
       <ThemeProvider>
         <LanguageProvider>
           <AuthProvider>

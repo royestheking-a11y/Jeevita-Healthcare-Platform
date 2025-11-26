@@ -6,14 +6,12 @@ import { Badge } from '../components/ui/badge';
 import { useData } from '../contexts/DataContext';
 import { useCart } from '../contexts/CartContext';
 import { toast } from 'sonner';
+import { useParams } from 'react-router-dom';
+import { MedicineSeo } from '../seo-pages/MedicineSeo';
 
-interface MedicineDetailsPageProps {
-  onNavigate: (page: string) => void;
-  medicineId: string;
-}
-
-export function MedicineDetailsPage({ onNavigate, medicineId }: MedicineDetailsPageProps) {
+export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string, data?: any) => void }) {
   const [quantity, setQuantity] = useState(1);
+  const { medicineId } = useParams();
   const { addToCart } = useCart();
   const { medicines, loading } = useData();
   const medicine = medicines.find(m => m.id === medicineId);
@@ -55,6 +53,12 @@ export function MedicineDetailsPage({ onNavigate, medicineId }: MedicineDetailsP
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-amber-50 py-8">
+      <MedicineSeo
+        id={medicine.id}
+        name={medicine.name}
+        descriptionText={medicine.description}
+        image={medicine.image}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back Button */}
         <Button

@@ -5,6 +5,7 @@ import { useData } from '../contexts/DataContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Input } from '../components/ui/input';
 import { Search } from 'lucide-react';
+import { DoctorsSeo } from '../seo-pages/DoctorsSeo';
 
 interface DoctorsPageProps {
   onNavigate: (page: string, data?: any) => void;

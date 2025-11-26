@@ -4,24 +4,27 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useData } from '../contexts/DataContext';
 import { Input } from '../components/ui/input';
 import { Search } from 'lucide-react';
+import { HospitalsSeo } from '../seo-pages/HospitalsSeo';
 
 interface HospitalsPageProps {
   onNavigate: (page: string, data?: any) => void;
 }
 
-export function HospitalsPage({ onNavigate }: HospitalsPageProps) {
+export function HospitalsPage({ onNavigate }: { onNavigate: (page: string, data?: any) => void }) {
   const { t } = useLanguage();
-  const { hospitals } = useData();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { hospitals, loading } = useData();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('All');
 
   const filteredHospitals = hospitals.filter(hospital =>
-    hospital.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    hospital.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    hospital.specialty.toLowerCase().includes(searchQuery.toLowerCase())
+    hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    hospital.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    hospital.specialty.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#1a202c] py-8">
+      <HospitalsSeo />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
@@ -38,8 +41,8 @@ export function HospitalsPage({ onNavigate }: HospitalsPageProps) {
             <Input
               type="text"
               placeholder="Search hospitals by name, location, or specialty..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>

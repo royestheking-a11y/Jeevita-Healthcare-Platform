@@ -32,6 +32,7 @@ export interface Medicine {
   image: string;
   category: string;
   inStock: boolean;
+  description?: string;
 }
 
 export interface Hospital {

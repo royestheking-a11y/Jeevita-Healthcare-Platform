@@ -4,13 +4,15 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { useData } from '../contexts/DataContext';
+import { useParams } from 'react-router-dom';
+import { DoctorProfileSeo } from '../seo-pages/DoctorProfileSeo';
 
 interface DoctorProfilePageProps {
   onNavigate: (page: string, data?: any) => void;
-  doctorId: string;
 }
 
-export function DoctorProfilePage({ onNavigate, doctorId }: DoctorProfilePageProps) {
+export function DoctorProfilePage({ onNavigate }: { onNavigate: (page: string, data?: any) => void }) {
+  const { doctorId } = useParams();
   const { doctors, loading } = useData();
   const doctor = doctors.find(d => d.id === doctorId);
 

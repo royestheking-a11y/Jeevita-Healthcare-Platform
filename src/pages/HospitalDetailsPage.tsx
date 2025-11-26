@@ -4,23 +4,13 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { useData } from '../contexts/DataContext';
+import { useParams } from 'react-router-dom';
+import { HospitalProfileSeo } from '../seo-pages/HospitalProfileSeo';
 
-interface HospitalDetailsPageProps {
-  onNavigate: (page: string) => void;
-  hospitalId: string;
-}
-
-export function HospitalDetailsPage({ onNavigate, hospitalId }: HospitalDetailsPageProps) {
+export function HospitalDetailsPage({ onNavigate }: { onNavigate: (page: string, data?: any) => void }) {
+  const { hospitalId } = useParams();
   const { hospitals, loading } = useData();
   const hospital = hospitals.find(h => h.id === hospitalId);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
-      </div>
-    );
-  }
 
   if (!hospital) {
     return (
