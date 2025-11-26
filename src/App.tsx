@@ -42,6 +42,28 @@ function ScrollToTop() {
   return null;
 }
 
+// Session handler to redirect to home on new session (browser restart)
+function SessionHandler() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check if this is a new session
+    const hasVisited = sessionStorage.getItem('hasVisited');
+
+    if (!hasVisited) {
+      // If no session flag and not on homepage, redirect to home
+      if (location.pathname !== '/') {
+        navigate('/', { replace: true });
+      }
+      // Set session flag
+      sessionStorage.setItem('hasVisited', 'true');
+    }
+  }, []); // Run once on mount
+
+  return null;
+}
+
 function PageWrapper({ Component, showNavbar = true, showFooter = true, showAssistant = true }: any) {
   const navigate = useNavigate();
   const params = useParams();
@@ -179,6 +201,7 @@ export default function App() {
             <CartProvider>
               <DataProvider>
                 <ScrollToTop />
+                <SessionHandler />
                 <AppContent />
               </DataProvider>
             </CartProvider>

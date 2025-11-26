@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useData } from '../contexts/DataContext';
 import { Button } from './ui/button';
 
 interface HeroCarouselProps {
@@ -8,9 +9,11 @@ interface HeroCarouselProps {
 
 export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
   const { t } = useLanguage();
+  const { carouselSlides } = useData();
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const slides = [
+  // Fallback slides if no data is available
+  const defaultSlides = [
     {
       image: 'https://images.unsplash.com/photo-1666886573230-2b730505f298?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkb2N0b3IlMjBtZWRpY2FsJTIwcHJvZmVzc2lvbmFsfGVufDF8fHx8MTc2MjI4MjE0Mnww&ixlib=rb-4.1.0&q=80&w=1080',
       title: t('hero.title1'),
@@ -18,21 +21,24 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
       cta: 'Book Appointment Now',
       action: () => onNavigate('doctors'),
     },
-    {
-      image: 'https://images.unsplash.com/photo-1596522016734-8e6136fe5cfa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtZWRpY2luZSUyMHBoYXJtYWN5JTIwcGlsbHN8ZW58MXx8fHwxNzYyMjQ0MjU2fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      title: t('hero.title2'),
-      subtitle: t('hero.subtitle2'),
-      cta: 'Order Medicine Now',
-      action: () => onNavigate('medicines'),
-    },
-    {
-      image: 'https://images.unsplash.com/photo-1668874896975-7f874c90600a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoZWFsdGhjYXJlJTIwbWVkaWNhbCUyMGNhcmV8ZW58MXx8fHwxNzYyMjM1Njc4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      title: t('hero.title3'),
-      subtitle: t('hero.subtitle3'),
-      cta: 'Explore Healthcare',
-      action: () => onNavigate('hospitals'),
-    },
   ];
+
+  const slides = carouselSlides.length > 0 ? carouselSlides.map(slide => ({
+    image: slide.image,
+    title: slide.title,
+    subtitle: slide.subtitle,
+    cta: slide.cta,
+    action: () => {
+      const ctaText = slide.cta.toLowerCase();
+      if (ctaText.includes('medicine')) {
+        onNavigate('medicines');
+      } else if (ctaText.includes('hospital')) {
+        onNavigate('hospitals');
+      } else {
+        onNavigate('doctors');
+      }
+    }
+  })) : defaultSlides;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -44,12 +50,11 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
 
   return (
     <div className="relative h-[500px] md:h-[600px] overflow-hidden">
-      {slides.map((slide, index) => (
+      {slides.map((slide: { image: string; title: string; subtitle: string; cta: string; action: () => void }, index: number) => (
         <div
           key={index}
-          className={`absolute inset-0 transition-opacity duration-1000 ${
-            index === currentSlide ? 'opacity-100' : 'opacity-0'
-          }`}
+          className={`absolute inset-0 transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100' : 'opacity-0'
+            }`}
         >
           {/* Background Image with Overlay */}
           <div
