@@ -27,59 +27,63 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  // Load cart from API on mount and when user changes
-  useEffect(() => {
-    const loadCart = async () => {
-      if (user && user.id) {
-        try {
-          const cartData = await cartsAPI.getByUserId(user.id);
-          setCart(cartData.items || []);
-        } catch (e) {
-          console.error('Error loading cart from API:', e);
-          setCart([]);
-        }
-      } else {
-        setCart([]);
-      }
-    };
-    loadCart();
+  const isUpdating = React.useRef(false);
 
-    // Refresh cart on window focus
-    const handleFocus = () => {
-      loadCart();
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [user]);
+  const fetchCart = useCallback(async (isPolling = false) => {
+    if (!user || !user.id) {
+      setCart([]);
+      return;
+    }
 
+    // If we are in the middle of a local update, skip fetching to avoid overwriting
+    // local changes with potentially stale server data.
+    if (isUpdating.current) {
+      // console.log('Skipping cart fetch due to local update lock');
+      return;
+    }
 
+    try {
+      const cartData = await cartsAPI.getByUserId(user.id);
 
-  const refreshCart = useCallback(async () => {
-    if (user && user.id) {
-      try {
-        // console.log('Polling cart for user:', user.id);
-        const cartData = await cartsAPI.getByUserId(user.id);
-        // console.log('Poll result:', cartData);
+      // Check lock again before setting state, in case an update started while we were fetching
+      if (!isUpdating.current) {
         setCart(cartData.items || []);
-      } catch (e) {
-        console.error('Error refreshing cart:', e);
-        // Don't clear cart on error to prevent flickering if API fails briefly
+      }
+    } catch (e) {
+      console.error('Error fetching cart:', e);
+      // Only clear cart on error if it's not a polling request (to avoid flickering)
+      if (!isPolling) {
+        // Don't clear even on initial load error, maybe keep previous state?
+        // But if it's initial load, previous state is empty.
+        // Let's just log for now.
       }
     }
   }, [user]);
 
-  // Poll for cart updates every 3 seconds
+  // Initial load and window focus
+  useEffect(() => {
+    fetchCart(false);
+
+    const handleFocus = () => {
+      fetchCart(false);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchCart]);
+
+  // Poll for cart updates
   useEffect(() => {
     if (!user || !user.id) return;
 
     const interval = setInterval(() => {
-      refreshCart();
+      fetchCart(true);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [user, refreshCart]);
+  }, [user, fetchCart]);
 
   const addToCart = async (item: Omit<CartItem, 'quantity'>) => {
+    isUpdating.current = true;
     const newItem = { ...item, quantity: 1 };
     let newCart: CartItem[] = [];
 
@@ -101,11 +105,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
         await cartsAPI.update(user.id, newCart);
       } catch (e) {
         console.error('Error adding to cart:', e);
+      } finally {
+        // Add a delay before allowing polling again to ensure server consistency
+        setTimeout(() => {
+          isUpdating.current = false;
+        }, 2000);
       }
+    } else {
+      isUpdating.current = false;
     }
   };
 
   const removeFromCart = async (id: string) => {
+    isUpdating.current = true;
     let newCart: CartItem[] = [];
     setCart(prev => {
       newCart = prev.filter(i => i.id !== id);
@@ -117,7 +129,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         await cartsAPI.update(user.id, newCart);
       } catch (e) {
         console.error('Error removing from cart:', e);
+      } finally {
+        setTimeout(() => {
+          isUpdating.current = false;
+        }, 2000);
       }
+    } else {
+      isUpdating.current = false;
     }
   };
 
@@ -127,6 +145,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    isUpdating.current = true;
     let newCart: CartItem[] = [];
     setCart(prev => {
       newCart = prev.map(i => (i.id === id ? { ...i, quantity } : i));
@@ -138,7 +157,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         await cartsAPI.update(user.id, newCart);
       } catch (e) {
         console.error('Error updating quantity:', e);
+      } finally {
+        setTimeout(() => {
+          isUpdating.current = false;
+        }, 2000);
       }
+    } else {
+      isUpdating.current = false;
     }
   };
 
@@ -166,7 +191,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         clearCart,
         cartTotal,
         cartCount,
-        refreshCart,
+        refreshCart: () => fetchCart(false),
       }}
     >
       {children}
