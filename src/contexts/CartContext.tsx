@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { cartsAPI } from '../utils/api';
 
@@ -43,48 +43,82 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     };
     loadCart();
+
+    // Refresh cart on window focus
+    const handleFocus = () => {
+      loadCart();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [user]);
 
-  // Save cart to API whenever it changes
-  useEffect(() => {
-    const saveCart = async () => {
-      if (user && user.id && cart.length >= 0) {
-        try {
-          await cartsAPI.update(user.id, cart);
-        } catch (e) {
-          console.error('Error saving cart to API:', e);
-        }
-      }
-    };
-    saveCart();
-  }, [cart, user]);
 
-  const refreshCart = async () => {
+
+  const refreshCart = useCallback(async () => {
     if (user && user.id) {
       try {
+        // console.log('Polling cart for user:', user.id);
         const cartData = await cartsAPI.getByUserId(user.id);
+        // console.log('Poll result:', cartData);
         setCart(cartData.items || []);
       } catch (e) {
         console.error('Error refreshing cart:', e);
-        setCart([]);
+        // Don't clear cart on error to prevent flickering if API fails briefly
+      }
+    }
+  }, [user]);
+
+  // Poll for cart updates every 3 seconds
+  useEffect(() => {
+    if (!user || !user.id) return;
+
+    const interval = setInterval(() => {
+      refreshCart();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [user, refreshCart]);
+
+  const addToCart = async (item: Omit<CartItem, 'quantity'>) => {
+    const newItem = { ...item, quantity: 1 };
+    let newCart: CartItem[] = [];
+
+    setCart(prev => {
+      const existing = prev.find(i => i.id === item.id);
+      if (existing) {
+        newCart = prev.map(i =>
+          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+        );
+      } else {
+        newCart = [...prev, newItem];
+      }
+      return newCart;
+    });
+
+    if (user && user.id) {
+      try {
+        // We need to wait for state update or use the calculated newCart
+        await cartsAPI.update(user.id, newCart);
+      } catch (e) {
+        console.error('Error adding to cart:', e);
       }
     }
   };
 
-  const addToCart = async (item: Omit<CartItem, 'quantity'>) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.id === item.id);
-      if (existing) {
-        return prev.map(i =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
-        );
-      }
-      return [...prev, { ...item, quantity: 1 }];
-    });
-  };
-
   const removeFromCart = async (id: string) => {
-    setCart(prev => prev.filter(i => i.id !== id));
+    let newCart: CartItem[] = [];
+    setCart(prev => {
+      newCart = prev.filter(i => i.id !== id);
+      return newCart;
+    });
+
+    if (user && user.id) {
+      try {
+        await cartsAPI.update(user.id, newCart);
+      } catch (e) {
+        console.error('Error removing from cart:', e);
+      }
+    }
   };
 
   const updateQuantity = async (id: string, quantity: number) => {
@@ -92,7 +126,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
       await removeFromCart(id);
       return;
     }
-    setCart(prev => prev.map(i => (i.id === id ? { ...i, quantity } : i)));
+
+    let newCart: CartItem[] = [];
+    setCart(prev => {
+      newCart = prev.map(i => (i.id === id ? { ...i, quantity } : i));
+      return newCart;
+    });
+
+    if (user && user.id) {
+      try {
+        await cartsAPI.update(user.id, newCart);
+      } catch (e) {
+        console.error('Error updating quantity:', e);
+      }
+    }
   };
 
   const clearCart = async () => {

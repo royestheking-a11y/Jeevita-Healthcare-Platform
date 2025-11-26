@@ -36,22 +36,12 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     () => ('Notification' in window ? Notification.permission : 'denied')
   );
   const [profileImage, setProfileImage] = useState<string>(() => {
-    if (user) {
-      const stored = localStorage.getItem(`profileImage_${user.id}`);
-      return stored || '';
-    }
-    return '';
+    return user?.profileImage || '';
   });
 
-  // Load addresses from localStorage
+  // Load addresses from user profile
   const [addresses, setAddresses] = useState<any[]>(() => {
-    if (user) {
-      const stored = localStorage.getItem(`userAddresses_${user.id}`);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    }
-    return [];
+    return user?.addresses || [];
   });
 
   const [newAddress, setNewAddress] = useState({
@@ -90,48 +80,23 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   // Load profile data when user is available
   useEffect(() => {
     if (user) {
-      const stored = localStorage.getItem(`userProfile_${user.id}`);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setProfileData({
-            name: parsed.name || user.name || '',
-            phone: parsed.phone || '',
-            dateOfBirth: parsed.dateOfBirth || '',
-            bio: parsed.bio || ''
-          });
-        } catch (error) {
-          // If parsing fails, use default values
-          setProfileData({
-            name: user.name || '',
-            phone: '',
-            dateOfBirth: '',
-            bio: ''
-          });
-        }
-      } else {
-        // Initialize with user name if no stored data
-        setProfileData({
-          name: user.name || '',
-          phone: '',
-          dateOfBirth: '',
-          bio: ''
-        });
-      }
+      setProfileData({
+        name: user.name || '',
+        phone: user.phone || '',
+        dateOfBirth: user.dateOfBirth || '',
+        bio: user.bio || ''
+      });
+      setProfileImage(user.profileImage || '');
+      setAddresses(user.addresses || []);
     }
   }, [user]);
 
-  // Save addresses to localStorage
-  useEffect(() => {
-    if (user && addresses.length > 0) {
-      localStorage.setItem(`userAddresses_${user.id}`, JSON.stringify(addresses));
-    }
-  }, [addresses, user]);
 
-  // Save profile data to localStorage
+
+  // Save profile data to backend
   const handleSaveProfile = () => {
     if (user) {
-      localStorage.setItem(`userProfile_${user.id}`, JSON.stringify(profileData));
+      updateUser(profileData);
       toast.success('Profile updated successfully!');
     }
   };
@@ -334,20 +299,12 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const handleProfileImageUpload = (imageData: string) => {
     setProfileImage(imageData);
     if (user) {
-      localStorage.setItem(`profileImage_${user.id}`, imageData);
       updateUser({ profileImage: imageData });
     }
     toast.success('Profile photo updated!');
   };
 
-  // Save profile image to localStorage when it changes
-  useEffect(() => {
-    if (user && profileImage) {
-      localStorage.setItem(`profileImage_${user.id}`, profileImage);
-    } else if (user && !profileImage) {
-      localStorage.removeItem(`profileImage_${user.id}`);
-    }
-  }, [profileImage, user]);
+
 
   const handleAddAddress = () => {
     if (!newAddress.street || !newAddress.city || !newAddress.district || !newAddress.phone) {
@@ -355,9 +312,10 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       return;
     }
 
+    let updatedAddresses;
     if (editingAddress) {
       // Update existing address
-      setAddresses(addresses.map(a => a.id === editingAddress.id ? { ...newAddress, id: editingAddress.id, isDefault: editingAddress.isDefault } : a));
+      updatedAddresses = addresses.map(a => a.id === editingAddress.id ? { ...newAddress, id: editingAddress.id, isDefault: editingAddress.isDefault } : a);
       toast.success('Address updated successfully!');
       setEditingAddress(null);
     } else {
@@ -367,8 +325,13 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
         ...newAddress,
         isDefault: addresses.length === 0
       };
-      setAddresses([...addresses, address]);
+      updatedAddresses = [...addresses, address];
       toast.success('Address added successfully!');
+    }
+
+    setAddresses(updatedAddresses);
+    if (user) {
+      updateUser({ addresses: updatedAddresses });
     }
 
     setNewAddress({ type: 'Home', street: '', city: '', district: '', postalCode: '', phone: '' });
@@ -389,12 +352,20 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   };
 
   const handleDeleteAddress = (id: string) => {
-    setAddresses(addresses.filter(a => a.id !== id));
+    const updatedAddresses = addresses.filter(a => a.id !== id);
+    setAddresses(updatedAddresses);
+    if (user) {
+      updateUser({ addresses: updatedAddresses });
+    }
     toast.success('Address deleted');
   };
 
   const handleSetDefaultAddress = (id: string) => {
-    setAddresses(addresses.map(a => ({ ...a, isDefault: a.id === id })));
+    const updatedAddresses = addresses.map(a => ({ ...a, isDefault: a.id === id }));
+    setAddresses(updatedAddresses);
+    if (user) {
+      updateUser({ addresses: updatedAddresses });
+    }
     toast.success('Default address updated');
   };
 

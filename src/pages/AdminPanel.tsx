@@ -1972,6 +1972,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                                     userName: prescription.userName,
                                     userEmail: prescription.userEmail,
                                   });
+                                  console.log('Opening cart for user:', prescription.userId);
                                   // Load user cart from API
                                   try {
                                     const cartData = await cartsAPI.getByUserId(prescription.userId);
@@ -3210,12 +3211,15 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                           setUserCartItems(updated);
                           if (selectedUserForCart) {
                             try {
+                              console.log('Admin updating cart for user:', selectedUserForCart.userId);
+                              console.log('New cart items:', updated);
                               await cartsAPI.update(selectedUserForCart.userId, updated);
+                              toast.success(`${medicine.name} added to cart`);
                             } catch (error) {
                               console.error('Error updating cart:', error);
+                              toast.error('Failed to update cart');
                             }
                           }
-                          toast.success(`${medicine.name} added to cart`);
                         }}
                         className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                       >

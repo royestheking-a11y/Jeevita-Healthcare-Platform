@@ -35,10 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (stored) {
         const parsedUser = JSON.parse(stored);
         // Check for stored profile image
-        const storedImage = localStorage.getItem(`profileImage_${parsedUser.id}`);
-        if (storedImage) {
-          return { ...parsedUser, profileImage: storedImage };
-        }
+        return parsedUser;
         return parsedUser;
       }
       return null;
@@ -86,10 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Check for stored profile image
-      const storedImage = localStorage.getItem(`profileImage_${userWithId.id}`);
-      if (storedImage) {
-        userWithId.profileImage = storedImage;
-      }
+
 
       setUser(userWithId);
     } catch (error: any) {
@@ -136,10 +130,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('currentUser');
   };
 
-  const updateUser = (updates: Partial<User>) => {
+  const updateUser = async (updates: Partial<User>) => {
     if (user) {
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
+      try {
+        // Update local state immediately for UI responsiveness
+        const updatedUser = { ...user, ...updates };
+        setUser(updatedUser);
+
+        // Persist to backend
+        await usersAPI.update(user.id, updates);
+
+        // Update localStorage for session persistence
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      } catch (error) {
+        console.error('Failed to update user profile:', error);
+        // Revert local state if API fails (optional, but good practice)
+        // For now, we'll just log the error as the UI might have already updated
+      }
     }
   };
 

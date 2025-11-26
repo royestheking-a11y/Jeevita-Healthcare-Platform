@@ -30,7 +30,7 @@ interface Address {
 
 export function CartPage({ onNavigate }: CartPageProps) {
   const { cart, removeFromCart, updateQuantity, cartTotal, clearCart, refreshCart } = useCart();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
 
   // Refresh cart when page loads to sync with localStorage (in case admin added items)
   useEffect(() => {
@@ -59,19 +59,15 @@ export function CartPage({ onNavigate }: CartPageProps) {
     phone: '',
   });
 
-  // Load addresses from localStorage
+  // Load addresses from user profile
   useEffect(() => {
-    if (user) {
-      const stored = localStorage.getItem(`userAddresses_${user.id}`);
-      if (stored) {
-        const userAddresses = JSON.parse(stored);
-        setAddresses(userAddresses);
-        const defaultAddr = userAddresses.find((a: Address) => a.isDefault);
-        if (defaultAddr) {
-          setSelectedAddress(defaultAddr);
-        } else if (userAddresses.length > 0) {
-          setSelectedAddress(userAddresses[0]);
-        }
+    if (user && user.addresses) {
+      setAddresses(user.addresses);
+      const defaultAddr = user.addresses.find((a: Address) => a.isDefault);
+      if (defaultAddr) {
+        setSelectedAddress(defaultAddr);
+      } else if (user.addresses.length > 0) {
+        setSelectedAddress(user.addresses[0]);
       }
     }
   }, [user]);
@@ -132,7 +128,7 @@ export function CartPage({ onNavigate }: CartPageProps) {
     setAddresses(updatedAddresses);
 
     if (user) {
-      localStorage.setItem(`userAddresses_${user.id}`, JSON.stringify(updatedAddresses));
+      updateUser({ addresses: updatedAddresses });
     }
 
     setSelectedAddress(address);
