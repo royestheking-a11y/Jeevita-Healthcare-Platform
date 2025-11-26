@@ -9,21 +9,24 @@ interface HeroCarouselProps {
 
 export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
   const { t } = useLanguage();
-  const { carouselSlides } = useData();
+  const { carouselSlides, loading } = useData();
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Fallback slides if no data is available
-  const defaultSlides = [
-    {
-      image: 'https://images.unsplash.com/photo-1666886573230-2b730505f298?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkb2N0b3IlMjBtZWRpY2FsJTIwcHJvZmVzc2lvbmFsfGVufDF8fHx8MTc2MjI4MjE0Mnww&ixlib=rb-4.1.0&q=80&w=1080',
-      title: t('hero.title1'),
-      subtitle: t('hero.subtitle1'),
-      cta: 'Book Appointment Now',
-      action: () => onNavigate('doctors'),
-    },
-  ];
+  if (loading) {
+    return (
+      <div className="relative h-[500px] md:h-[600px] overflow-hidden bg-gray-200 animate-pulse">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
 
-  const slides = carouselSlides.length > 0 ? carouselSlides.map(slide => ({
+  if (carouselSlides.length === 0) {
+    return null;
+  }
+
+  const slides = carouselSlides.map(slide => ({
     image: slide.image,
     title: slide.title,
     subtitle: slide.subtitle,
@@ -38,7 +41,7 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
         onNavigate('doctors');
       }
     }
-  })) : defaultSlides;
+  }));
 
   useEffect(() => {
     const timer = setInterval(() => {
