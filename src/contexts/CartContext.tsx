@@ -85,23 +85,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addToCart = async (item: Omit<CartItem, 'quantity'>) => {
     isUpdating.current = true;
     const newItem = { ...item, quantity: 1 };
-    let newCart: CartItem[] = [];
 
-    setCart(prev => {
-      const existing = prev.find(i => i.id === item.id);
-      if (existing) {
-        newCart = prev.map(i =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
-        );
-      } else {
-        newCart = [...prev, newItem];
-      }
-      return newCart;
-    });
+    // Calculate new state based on current cart
+    let newCart: CartItem[];
+    const existing = cart.find(i => i.id === item.id);
+    if (existing) {
+      newCart = cart.map(i =>
+        i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+      );
+    } else {
+      newCart = [...cart, newItem];
+    }
+
+    setCart(newCart);
 
     if (user && user.id) {
       try {
-        // We need to wait for state update or use the calculated newCart
         await cartsAPI.update(user.id, newCart);
       } catch (e) {
         console.error('Error adding to cart:', e);
@@ -118,11 +117,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const removeFromCart = async (id: string) => {
     isUpdating.current = true;
-    let newCart: CartItem[] = [];
-    setCart(prev => {
-      newCart = prev.filter(i => i.id !== id);
-      return newCart;
-    });
+
+    const newCart = cart.filter(i => i.id !== id);
+    setCart(newCart);
 
     if (user && user.id) {
       try {
@@ -146,11 +143,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     isUpdating.current = true;
-    let newCart: CartItem[] = [];
-    setCart(prev => {
-      newCart = prev.map(i => (i.id === id ? { ...i, quantity } : i));
-      return newCart;
-    });
+
+    const newCart = cart.map(i => (i.id === id ? { ...i, quantity } : i));
+    setCart(newCart);
 
     if (user && user.id) {
       try {
