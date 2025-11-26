@@ -4,10 +4,11 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
-import { DataProvider } from './contexts/DataContext';
+import { DataProvider, useData } from './contexts/DataContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { JeeviAssistant } from './components/JeeviAssistant';
+import { SplashScreen } from './components/SplashScreen';
 import { HomePage } from './pages/HomePage';
 import { DoctorsPage } from './pages/DoctorsPage';
 import { MedicinesPage } from './pages/MedicinesPage';
@@ -129,6 +130,33 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 function AppContent() {
   const { user } = useAuth();
+  const { loading } = useData(); // Get loading state from DataContext
+
+  // Initialize splash state:
+  // If loading is true (uncached), show splash.
+  // If loading is false (cached), don't show splash.
+  const [showSplash, setShowSplash] = useState(loading);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+
+  // Timer effect: Only runs if splash is shown
+  useEffect(() => {
+    if (showSplash) {
+      const timer = setTimeout(() => {
+        setMinTimeElapsed(true);
+      }, 3000); // 3 seconds minimum display
+      return () => clearTimeout(timer);
+    } else {
+      // If splash is not shown initially, we consider time elapsed immediately
+      setMinTimeElapsed(true);
+    }
+  }, [showSplash]);
+
+  // Hiding effect: Only hide when BOTH loading is done AND time is up
+  useEffect(() => {
+    if (!loading && minTimeElapsed) {
+      setShowSplash(false);
+    }
+  }, [loading, minTimeElapsed]);
 
   // Request notification permission when user logs in
   useEffect(() => {
@@ -140,6 +168,10 @@ function AppContent() {
       });
     }
   }, [user]);
+
+  if (showSplash) {
+    return <SplashScreen />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
