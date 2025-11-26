@@ -29,6 +29,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const isUpdating = React.useRef(false);
 
+  const isFetching = React.useRef(false);
+
   const fetchCart = useCallback(async (isPolling = false) => {
     if (!user || !user.id) {
       setCart([]);
@@ -42,8 +44,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Prevent overlapping fetches
+    if (isFetching.current) {
+      return;
+    }
+
     try {
+      isFetching.current = true;
+      const startTime = Date.now();
       const cartData = await cartsAPI.getByUserId(user.id);
+      // console.log(`Cart fetch took ${Date.now() - startTime}ms`);
 
       // Check lock again before setting state, in case an update started while we were fetching
       if (!isUpdating.current) {
@@ -57,6 +67,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         // But if it's initial load, previous state is empty.
         // Let's just log for now.
       }
+    } finally {
+      isFetching.current = false;
     }
   }, [user]);
 
@@ -71,13 +83,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('focus', handleFocus);
   }, [fetchCart]);
 
-  // Poll for cart updates
+  // Poll for cart updates every 1 second
   useEffect(() => {
     if (!user || !user.id) return;
 
     const interval = setInterval(() => {
       fetchCart(true);
-    }, 3000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [user, fetchCart]);
