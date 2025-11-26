@@ -188,17 +188,42 @@ const normalizeArray = <T extends { _id?: string; id?: string }>(items: T[]): (T
   return items.map(normalizeId);
 };
 
+// Helper to manage local storage cache
+const CACHE_PREFIX = 'jeevita_cache_';
+
+const loadFromCache = <T,>(key: string): T | null => {
+  try {
+    const cached = localStorage.getItem(CACHE_PREFIX + key);
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    console.error(`Error loading ${key} from cache:`, error);
+    return null;
+  }
+};
+
+const saveToCache = (key: string, data: any) => {
+  try {
+    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(data));
+  } catch (error) {
+    console.error(`Error saving ${key} to cache:`, error);
+  }
+};
+
 export function DataProvider({ children }: { children: ReactNode }) {
-  // State
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  // State - Initialize from cache if available
+  const [doctors, setDoctors] = useState<Doctor[]>(() => loadFromCache('doctors') || []);
+  const [medicines, setMedicines] = useState<Medicine[]>(() => loadFromCache('medicines') || []);
+  const [hospitals, setHospitals] = useState<Hospital[]>(() => loadFromCache('hospitals') || []);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>([]);
+  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>(() => loadFromCache('carouselSlides') || []);
   const [userActivities, setUserActivities] = useState<UserActivity[]>([]);
-  const [loading, setLoading] = useState(false); // Start false since we have mock data
+
+  // Initialize loading based on cache availability. 
+  // If we have cached data for critical public sections, we don't need to show a full loader.
+  const hasCachedData = doctors.length > 0 || medicines.length > 0 || hospitals.length > 0 || carouselSlides.length > 0;
+  const [loading, setLoading] = useState(!hasCachedData);
 
   const { user } = useAuth(); // Import useAuth to check login status
 
@@ -206,7 +231,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadPublicData = async () => {
       try {
-        setLoading(true);
+        // Only show loading state if we don't have any data
+        if (!hasCachedData) {
+          setLoading(true);
+        }
+
         // Fetch public data in parallel
         const [doctorsData, medicinesData, hospitalsData, carouselData] = await Promise.all([
           doctorsAPI.getAll().catch(() => []),
@@ -215,11 +244,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
           carouselAPI.getAll().catch(() => []),
         ]);
 
-        // Use empty array if API returns null/undefined, do NOT fallback to mock data
-        setDoctors(normalizeArray(doctorsData || []));
-        setMedicines(normalizeArray(medicinesData || []));
-        setHospitals(normalizeArray(hospitalsData || []));
-        setCarouselSlides(normalizeArray(carouselData || []));
+        // Normalize data
+        const normalizedDoctors = normalizeArray(doctorsData || []);
+        const normalizedMedicines = normalizeArray(medicinesData || []);
+        const normalizedHospitals = normalizeArray(hospitalsData || []);
+        const normalizedCarousel = normalizeArray(carouselData || []);
+
+        // Update state
+        setDoctors(normalizedDoctors);
+        setMedicines(normalizedMedicines);
+        setHospitals(normalizedHospitals);
+        setCarouselSlides(normalizedCarousel);
+
+        // Update cache
+        saveToCache('doctors', normalizedDoctors);
+        saveToCache('medicines', normalizedMedicines);
+        saveToCache('hospitals', normalizedHospitals);
+        saveToCache('carouselSlides', normalizedCarousel);
+
       } catch (error) {
         console.error('Error loading public data:', error);
       } finally {
