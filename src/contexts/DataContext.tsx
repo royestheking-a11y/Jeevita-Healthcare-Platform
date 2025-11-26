@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { mockDoctors, mockMedicines, mockHospitals } from '../data/mockData';
+// Mock data removed to ensure persistence
+// import { mockDoctors, mockMedicines, mockHospitals } from '../data/mockData';
 import {
   doctorsAPI, medicinesAPI, hospitalsAPI, appointmentsAPI,
   prescriptionsAPI, paymentsAPI, carouselAPI, activitiesAPI, refundsAPI
@@ -189,16 +190,13 @@ const normalizeArray = <T extends { _id?: string; id?: string }>(items: T[]): (T
 
 export function DataProvider({ children }: { children: ReactNode }) {
   // State
-  const [doctors, setDoctors] = useState<Doctor[]>(mockDoctors);
-  const [medicines, setMedicines] = useState<Medicine[]>(mockMedicines);
-  const [hospitals, setHospitals] = useState<Hospital[]>(mockHospitals);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>([
-    { _id: '1', id: '1', image: 'https://images.unsplash.com/photo-1666886573230-2b730505f298?w=1200', title: 'Expert Healthcare', subtitle: 'Book appointments with top specialists', cta: 'Find Doctors' },
-    { _id: '2', id: '2', image: 'https://images.unsplash.com/photo-1596522016734-8e6136fe5cfa?w=1200', title: 'Fast Medicine Delivery', subtitle: 'Order medicines online', cta: 'Order Now' },
-  ]);
+  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>([]);
   const [userActivities, setUserActivities] = useState<UserActivity[]>([]);
   const [loading, setLoading] = useState(false); // Start false since we have mock data
 
@@ -217,15 +215,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           carouselAPI.getAll().catch(() => []),
         ]);
 
-        // Use mock data if API returns empty or fails
-        setDoctors(normalizeArray(doctorsData && doctorsData.length > 0 ? doctorsData : mockDoctors.map(d => ({ ...d, _id: d.id }))));
-        setMedicines(normalizeArray(medicinesData && medicinesData.length > 0 ? medicinesData : mockMedicines.map(m => ({ ...m, _id: m.id }))));
-        setHospitals(normalizeArray(hospitalsData && hospitalsData.length > 0 ? hospitalsData : mockHospitals.map(h => ({ ...h, _id: h.id }))));
-
-        setCarouselSlides(normalizeArray(carouselData && carouselData.length > 0 ? carouselData : [
-          { _id: '1', id: '1', image: 'https://images.unsplash.com/photo-1666886573230-2b730505f298?w=1200', title: 'Expert Healthcare', subtitle: 'Book appointments with top specialists', cta: 'Find Doctors' },
-          { _id: '2', id: '2', image: 'https://images.unsplash.com/photo-1596522016734-8e6136fe5cfa?w=1200', title: 'Fast Medicine Delivery', subtitle: 'Order medicines online', cta: 'Order Now' },
-        ]));
+        // Use empty array if API returns null/undefined, do NOT fallback to mock data
+        setDoctors(normalizeArray(doctorsData || []));
+        setMedicines(normalizeArray(medicinesData || []));
+        setHospitals(normalizeArray(hospitalsData || []));
+        setCarouselSlides(normalizeArray(carouselData || []));
       } catch (error) {
         console.error('Error loading public data:', error);
       } finally {
