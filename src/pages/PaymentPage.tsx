@@ -76,6 +76,13 @@ export function PaymentPage(props: any) {
     }
   }, [isSubmitted, paymentMethod, timeLeft]);
 
+  // Scroll to top when submitted
+  useEffect(() => {
+    if (isSubmitted) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [isSubmitted]);
+
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;

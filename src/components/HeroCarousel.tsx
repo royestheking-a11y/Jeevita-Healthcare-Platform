@@ -19,9 +19,9 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
     cta: slide.cta,
     action: () => {
       const ctaText = slide.cta.toLowerCase();
-      if (ctaText.includes('medicine') || ctaText.includes('order')) {
+      if (ctaText.includes('medicine')) {
         onNavigate('medicines');
-      } else if (ctaText.includes('hospital') || ctaText.includes('visit')) {
+      } else if (ctaText.includes('hospital')) {
         onNavigate('hospitals');
       } else {
         onNavigate('doctors');
