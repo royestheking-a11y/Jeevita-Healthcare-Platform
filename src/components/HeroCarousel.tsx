@@ -12,20 +12,6 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
   const { carouselSlides, loading } = useData();
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  if (loading) {
-    return (
-      <div className="relative h-[500px] md:h-[600px] overflow-hidden bg-gray-200 animate-pulse">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (carouselSlides.length === 0) {
-    return null;
-  }
-
   const slides = carouselSlides.map(slide => ({
     image: slide.image,
     title: slide.title,
@@ -44,12 +30,27 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
   }));
 
   useEffect(() => {
+    if (slides.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 5000);
 
     return () => clearInterval(timer);
   }, [slides.length]);
+
+  if (loading) {
+    return (
+      <div className="relative h-[500px] md:h-[600px] overflow-hidden bg-gray-200 animate-pulse">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (slides.length === 0) {
+    return null;
+  }
 
   return (
     <div className="relative h-[500px] md:h-[600px] overflow-hidden">
