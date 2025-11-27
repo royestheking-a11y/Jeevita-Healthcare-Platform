@@ -1204,6 +1204,50 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={showRefundDialog} onOpenChange={setShowRefundDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Refund</DialogTitle>
+            <DialogDescription>
+              Please provide your payment details for the refund.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Refund Method</Label>
+              <div className="flex gap-4">
+                {['bkash', 'nagad', 'rocket'].map((method) => (
+                  <div
+                    key={method}
+                    onClick={() => setRefundMethod(method)}
+                    className={`flex-1 p-3 rounded-lg border cursor-pointer text-center capitalize transition-all ${refundMethod === method
+                        ? 'border-amber-500 bg-amber-50 text-amber-700 font-medium ring-1 ring-amber-500'
+                        : 'border-gray-200 hover:border-amber-300 hover:bg-gray-50'
+                      }`}
+                  >
+                    {method}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Phone Number</Label>
+              <Input
+                value={refundNumber}
+                onChange={(e) => setRefundNumber(e.target.value)}
+                placeholder="Enter your mobile number"
+              />
+            </div>
+            <Button
+              onClick={handleRequestRefund}
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+            >
+              Submit Request
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
