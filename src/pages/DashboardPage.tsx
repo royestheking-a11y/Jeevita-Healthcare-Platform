@@ -370,8 +370,25 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     toast.success('Default address updated');
   };
 
-  const handleRequestRefund = async (orderId: string) => {
-    const order = orders.find(o => o.id === orderId);
+  const [showRefundDialog, setShowRefundDialog] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [refundMethod, setRefundMethod] = useState('bkash');
+  const [refundNumber, setRefundNumber] = useState('');
+
+  const handleOpenRefundDialog = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setRefundMethod('bkash');
+    setRefundNumber('');
+    setShowRefundDialog(true);
+  };
+
+  const handleRequestRefund = async () => {
+    if (!selectedOrderId || !refundNumber) {
+      toast.error('Please enter a refund number');
+      return;
+    }
+
+    const order = orders.find(o => o.id === selectedOrderId);
     if (!order) {
       toast.error('Order not found');
       return;
@@ -381,16 +398,19 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       const newRefundRequest = {
         userName: user?.name || 'User',
         orderType: 'Medicine Order',
-        orderId: orderId,
+        orderId: selectedOrderId,
         amount: order.total,
         reason: 'Customer request',
         status: 'pending',
         requestDate: new Date().toISOString().split('T')[0],
         transactionId: order.transactionId || '',
+        refundMethod,
+        refundNumber
       };
 
       await refundsAPI.create(newRefundRequest);
       toast.success('Refund request submitted. Admin will review shortly.');
+      setShowRefundDialog(false);
     } catch (error) {
       console.error('Failed to submit refund request:', error);
       toast.error('Failed to submit refund request. Please try again.');
@@ -724,7 +744,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                           </div>
                           {(order.status === 'processing' || order.status === 'confirmed') && (
                             <Button
-                              onClick={() => handleRequestRefund(order.id)}
+                              onClick={() => handleOpenRefundDialog(order.id)}
                               variant="outline"
                               size="sm"
                               className="text-red-600 border-red-300 hover:bg-red-50"

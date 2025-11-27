@@ -8,7 +8,9 @@ const refundRequestSchema = new mongoose.Schema({
   reason: { type: String, required: true },
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   requestDate: { type: String, required: true },
-  transactionId: { type: String, required: true }
+  transactionId: { type: String, required: true },
+  refundMethod: { type: String, required: true },
+  refundNumber: { type: String, required: true }
 }, {
   timestamps: true
 });

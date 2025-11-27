@@ -2827,34 +2827,34 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                       'border-red-300 bg-red-50/30'
                     } hover:shadow-xl transition-all`}>
                     <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-start gap-4">
-                          <div className={`p-3 rounded-full ${request.status === 'pending' ? 'bg-gradient-to-br from-amber-500 to-orange-500' :
-                            request.status === 'approved' ? 'bg-gradient-to-br from-green-500 to-emerald-500' :
-                              'bg-gradient-to-br from-red-500 to-rose-500'
-                            }`}>
-                            <RotateCcw className="h-5 w-5 text-white" />
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-gray-900 font-medium">{request.userName}</h3>
+                            <Badge variant="outline">{request.orderType}</Badge>
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-bold text-gray-900">{request.userName}</h3>
-                              <Badge className={
-                                request.status === 'pending' ? 'bg-amber-500' :
-                                  request.status === 'approved' ? 'bg-green-500' :
-                                    'bg-red-500'
-                              }>
-                                {request.status.toUpperCase()}
-                              </Badge>
+                          <p className="text-sm text-gray-500">Order #{request.orderId}</p>
+                          <p className="text-sm text-gray-500">Date: {request.requestDate}</p>
+                          {request.refundMethod && (
+                            <div className="mt-2 text-sm">
+                              <p className="text-gray-600">
+                                <span className="font-medium">Refund To:</span> <span className="capitalize">{request.refundMethod}</span>
+                              </p>
+                              <p className="text-gray-600">
+                                <span className="font-medium">Number:</span> {request.refundNumber}
+                              </p>
                             </div>
-                            <p className="text-sm text-gray-600">{request.orderType} • {request.orderId}</p>
-                            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              Requested on {request.requestDate}
-                            </p>
-                          </div>
+                          )}
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-amber-600">৳{request.amount}</p>
+                          <Badge className={
+                            request.status === 'approved' ? 'bg-green-100 text-green-700' :
+                              request.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-amber-100 text-amber-700'
+                          }>
+                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                          </Badge>
+                          <p className="text-2xl font-bold text-amber-600 mt-2">৳{request.amount}</p>
                         </div>
                       </div>
 
@@ -2933,172 +2933,175 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                 )}
               </div>
             </div>
-          )}
+          )
+          }
 
-          {activeTab === 'settings' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Settings</h2>
-                <p className="text-gray-600">Configure platform settings</p>
-              </div>
+          {
+            activeTab === 'settings' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Settings</h2>
+                  <p className="text-gray-600">Configure platform settings</p>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Platform Configuration</CardTitle>
-                  <CardDescription>Manage global platform settings</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Platform Name</Label>
-                    <Input defaultValue="Jeevita" />
-                  </div>
-                  <div>
-                    <Label>Admin Email</Label>
-                    <Input defaultValue="admin@jeevita.com" type="email" />
-                  </div>
-                  <div>
-                    <Label>Support Phone</Label>
-                    <Input defaultValue="01625691878" />
-                  </div>
-                  <div>
-                    <Label>bKash Number</Label>
-                    <Input defaultValue="01625691878" />
-                  </div>
-                  <Separator />
-                  <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30">
-                    Save Changes
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Delivery Charges</CardTitle>
-                  <CardDescription>Set delivery charges for different locations</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Inside Dhaka City (BDT)</Label>
-                    <Input
-                      type="number"
-                      id="dhakaDelivery"
-                      value={deliveryChargeDhaka}
-                      onChange={(e) => setDeliveryChargeDhaka(e.target.value)}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Delivery charge for orders within Dhaka city</p>
-                  </div>
-                  <div>
-                    <Label>Outside Dhaka City (BDT)</Label>
-                    <Input
-                      type="number"
-                      id="outsideDhakaDelivery"
-                      value={deliveryChargeOutside}
-                      onChange={(e) => setDeliveryChargeOutside(e.target.value)}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Delivery charge for orders outside Dhaka city</p>
-                  </div>
-                  <Button
-                    onClick={async () => {
-                      try {
-                        await Promise.all([
-                          settingsAPI.set('deliveryChargeDhaka', deliveryChargeDhaka),
-                          settingsAPI.set('deliveryChargeOutside', deliveryChargeOutside),
-                        ]);
-                        toast.success('Delivery charges updated successfully!');
-                      } catch (error) {
-                        toast.error('Failed to update delivery charges');
-                      }
-                    }}
-                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30"
-                  >
-                    Save Delivery Charges
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Social Media Links</CardTitle>
-                  <CardDescription>Manage social media links displayed in the footer</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Facebook URL</Label>
-                    <Input
-                      type="url"
-                      id="facebookLink"
-                      value={socialLinks.facebook}
-                      onChange={(e) => setSocialLinks({ ...socialLinks, facebook: e.target.value })}
-                      placeholder="https://facebook.com/yourpage"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Full URL to your Facebook page</p>
-                  </div>
-                  <div>
-                    <Label>Instagram URL</Label>
-                    <Input
-                      type="url"
-                      id="instagramLink"
-                      value={socialLinks.instagram}
-                      onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
-                      placeholder="https://instagram.com/yourprofile"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Full URL to your Instagram profile</p>
-                  </div>
-                  <div>
-                    <Label>LinkedIn URL</Label>
-                    <Input
-                      type="url"
-                      id="linkedinLink"
-                      value={socialLinks.linkedin}
-                      onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
-                      placeholder="https://linkedin.com/company/yourcompany"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Full URL to your LinkedIn page</p>
-                  </div>
-                  <Button
-                    onClick={async () => {
-                      try {
-                        await settingsAPI.set('socialMediaLinks', socialLinks);
-                        toast.success('Social media links updated successfully!');
-                      } catch (error) {
-                        toast.error('Failed to update social media links');
-                      }
-                    }}
-                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30"
-                  >
-                    Save Social Media Links
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Powered by Jeevita */}
-              <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50/50 to-amber-100/30">
-                <CardContent className="p-8 text-center">
-                  <div className="flex flex-col items-center justify-center space-y-4">
-                    <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 p-4 rounded-2xl shadow-lg">
-                      <Heart className="h-10 w-10 text-white fill-white" />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Platform Configuration</CardTitle>
+                    <CardDescription>Manage global platform settings</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>Platform Name</Label>
+                      <Input defaultValue="Jeevita" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 bg-clip-text text-transparent mb-2">
-                        Powered by Jeevita
-                      </h3>
-                      <p className="text-gray-600 text-sm">
-                        Healthcare Management Platform
-                      </p>
-                      <p className="text-gray-500 text-xs mt-2">
-                        © 2025 Jeevita. All rights reserved.
-                      </p>
+                      <Label>Admin Email</Label>
+                      <Input defaultValue="admin@jeevita.com" type="email" />
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </main>
-      </div>
+                    <div>
+                      <Label>Support Phone</Label>
+                      <Input defaultValue="01625691878" />
+                    </div>
+                    <div>
+                      <Label>bKash Number</Label>
+                      <Input defaultValue="01625691878" />
+                    </div>
+                    <Separator />
+                    <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30">
+                      Save Changes
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Delivery Charges</CardTitle>
+                    <CardDescription>Set delivery charges for different locations</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>Inside Dhaka City (BDT)</Label>
+                      <Input
+                        type="number"
+                        id="dhakaDelivery"
+                        value={deliveryChargeDhaka}
+                        onChange={(e) => setDeliveryChargeDhaka(e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Delivery charge for orders within Dhaka city</p>
+                    </div>
+                    <div>
+                      <Label>Outside Dhaka City (BDT)</Label>
+                      <Input
+                        type="number"
+                        id="outsideDhakaDelivery"
+                        value={deliveryChargeOutside}
+                        onChange={(e) => setDeliveryChargeOutside(e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Delivery charge for orders outside Dhaka city</p>
+                    </div>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await Promise.all([
+                            settingsAPI.set('deliveryChargeDhaka', deliveryChargeDhaka),
+                            settingsAPI.set('deliveryChargeOutside', deliveryChargeOutside),
+                          ]);
+                          toast.success('Delivery charges updated successfully!');
+                        } catch (error) {
+                          toast.error('Failed to update delivery charges');
+                        }
+                      }}
+                      className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30"
+                    >
+                      Save Delivery Charges
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Social Media Links</CardTitle>
+                    <CardDescription>Manage social media links displayed in the footer</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label>Facebook URL</Label>
+                      <Input
+                        type="url"
+                        id="facebookLink"
+                        value={socialLinks.facebook}
+                        onChange={(e) => setSocialLinks({ ...socialLinks, facebook: e.target.value })}
+                        placeholder="https://facebook.com/yourpage"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Full URL to your Facebook page</p>
+                    </div>
+                    <div>
+                      <Label>Instagram URL</Label>
+                      <Input
+                        type="url"
+                        id="instagramLink"
+                        value={socialLinks.instagram}
+                        onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
+                        placeholder="https://instagram.com/yourprofile"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Full URL to your Instagram profile</p>
+                    </div>
+                    <div>
+                      <Label>LinkedIn URL</Label>
+                      <Input
+                        type="url"
+                        id="linkedinLink"
+                        value={socialLinks.linkedin}
+                        onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
+                        placeholder="https://linkedin.com/company/yourcompany"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Full URL to your LinkedIn page</p>
+                    </div>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await settingsAPI.set('socialMediaLinks', socialLinks);
+                          toast.success('Social media links updated successfully!');
+                        } catch (error) {
+                          toast.error('Failed to update social media links');
+                        }
+                      }}
+                      className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30"
+                    >
+                      Save Social Media Links
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Powered by Jeevita */}
+                <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50/50 to-amber-100/30">
+                  <CardContent className="p-8 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-4">
+                      <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 p-4 rounded-2xl shadow-lg">
+                        <Heart className="h-10 w-10 text-white fill-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 bg-clip-text text-transparent mb-2">
+                          Powered by Jeevita
+                        </h3>
+                        <p className="text-gray-600 text-sm">
+                          Healthcare Management Platform
+                        </p>
+                        <p className="text-gray-500 text-xs mt-2">
+                          © 2025 Jeevita. All rights reserved.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )
+          }
+        </main >
+      </div >
 
       {/* Prescription Full Image Dialog */}
-      <Dialog open={!!selectedPrescriptionImage} onOpenChange={() => setSelectedPrescriptionImage(null)}>
+      < Dialog open={!!selectedPrescriptionImage} onOpenChange={() => setSelectedPrescriptionImage(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Prescription Full View</DialogTitle>
@@ -3114,10 +3117,10 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
             </div>
           )}
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* User Cart Management Dialog */}
-      <Dialog open={showUserCartDialog} onOpenChange={setShowUserCartDialog}>
+      < Dialog open={showUserCartDialog} onOpenChange={setShowUserCartDialog} >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Manage User Cart - {selectedUserForCart?.userName}</DialogTitle>
@@ -3247,7 +3250,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
-    </div>
+      </Dialog >
+    </div >
   );
 }
