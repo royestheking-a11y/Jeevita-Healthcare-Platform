@@ -19,6 +19,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
+  googleLogin: (token: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
@@ -52,6 +53,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('currentUser');
     }
   }, [user]);
+
+  const googleLogin = async (token: string) => {
+    try {
+      const loggedInUser = await usersAPI.googleLogin(token);
+
+      // Convert _id to id for compatibility
+      const userWithId = {
+        ...loggedInUser,
+        id: loggedInUser._id || loggedInUser.id,
+      };
+
+      if (userWithId.status === 'rejected') {
+        throw new Error('Your account has been disabled. Please contact admin.');
+      }
+
+      setUser(userWithId);
+    } catch (error: any) {
+      throw new Error(error.message || 'Google login failed');
+    }
+  };
 
   const login = async (email: string, password: string) => {
     // Admin login (hardcoded for now)
@@ -153,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, updateUser, isAdmin }}>
+    <AuthContext.Provider value={{ user, login, googleLogin, signup, logout, updateUser, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

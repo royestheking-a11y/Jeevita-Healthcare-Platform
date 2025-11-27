@@ -32,6 +32,7 @@ export const usersAPI = {
   update: (id: string, data: any) => apiCall<any>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => apiCall<any>(`/users/${id}`, { method: 'DELETE' }),
   login: (email: string, password: string) => apiCall<any>('/users/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  googleLogin: (token: string) => apiCall<any>('/users/google-login', { method: 'POST', body: JSON.stringify({ token }) }),
 };
 
 // Doctors API

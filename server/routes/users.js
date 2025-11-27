@@ -1,5 +1,9 @@
 import express from 'express';
 import { User } from '../models/User.js';
+import { OAuth2Client } from 'google-auth-library';
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '1060488985292-9109rvmg1j30v7qpq9793voc40ffrl49.apps.googleusercontent.com';
+const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const router = express.Router();
 
@@ -77,6 +81,37 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.password !== password) return res.status(401).json({ error: 'Invalid password' });
+    const userObj = user.toObject();
+    delete userObj.password;
+    res.json(userObj);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Google Login
+router.post('/google-login', async (req, res) => {
+  try {
+    const { token } = req.body;
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const { name, email, picture } = ticket.getPayload();
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = new User({
+        name,
+        email,
+        profileImage: picture,
+        role: 'user',
+        status: 'approved',
+      });
+      await user.save();
+    }
+
     const userObj = user.toObject();
     delete userObj.password;
     res.json(userObj);

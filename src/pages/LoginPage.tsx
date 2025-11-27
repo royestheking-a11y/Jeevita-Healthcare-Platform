@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -15,7 +16,7 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onNavigate }: LoginPageProps) {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -218,6 +219,36 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-2 text-gray-500">Or continue with</span>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-center">
+              <GoogleLogin
+                onSuccess={async (credentialResponse) => {
+                  if (credentialResponse.credential) {
+                    try {
+                      await googleLogin(credentialResponse.credential);
+                      toast.success('Google login successful!');
+                      onNavigate('home');
+                    } catch (error) {
+                      toast.error('Google login failed.');
+                    }
+                  }
+                }}
+                onError={() => {
+                  toast.error('Google login failed.');
+                }}
+              />
+            </div>
+          </div>
 
           <div className="mt-6 text-center space-y-2">
             <button
