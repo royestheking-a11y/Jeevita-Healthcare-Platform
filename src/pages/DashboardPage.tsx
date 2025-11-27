@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { toast } from 'sonner';
 import { NotificationService } from '../utils/notifications';
 import { ImageUploadWithCrop } from '../components/ImageUploadWithCrop';
+import { refundsAPI } from '../utils/api';
 
 interface DashboardPageProps {
   onNavigate: (page: string) => void;
@@ -369,40 +370,31 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     toast.success('Default address updated');
   };
 
-  const handleRequestRefund = (orderId: string) => {
+  const handleRequestRefund = async (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) {
       toast.error('Order not found');
       return;
     }
 
-    // Load existing refund requests
-    const loadRefundRequests = () => {
-      try {
-        const stored = localStorage.getItem('refundRequests');
-        return stored ? JSON.parse(stored) : [];
-      } catch {
-        return [];
-      }
-    };
+    try {
+      const newRefundRequest = {
+        userName: user?.name || 'User',
+        orderType: 'Medicine Order',
+        orderId: orderId,
+        amount: order.total,
+        reason: 'Customer request',
+        status: 'pending',
+        requestDate: new Date().toISOString().split('T')[0],
+        transactionId: order.transactionId || '',
+      };
 
-    const refundRequests = loadRefundRequests();
-    const newRefundRequest = {
-      id: Date.now().toString(),
-      userName: user?.name || 'User',
-      orderType: 'Medicine Order',
-      orderId: orderId,
-      amount: order.total,
-      reason: 'Customer request',
-      status: 'pending',
-      requestDate: new Date().toISOString().split('T')[0],
-      transactionId: order.transactionId || '',
-    };
-
-    refundRequests.push(newRefundRequest);
-    localStorage.setItem('refundRequests', JSON.stringify(refundRequests));
-
-    toast.success('Refund request submitted. Admin will review shortly.');
+      await refundsAPI.create(newRefundRequest);
+      toast.success('Refund request submitted. Admin will review shortly.');
+    } catch (error) {
+      console.error('Failed to submit refund request:', error);
+      toast.error('Failed to submit refund request. Please try again.');
+    }
   };
 
   const getStatusBadge = (status: string) => {
