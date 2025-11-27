@@ -33,7 +33,7 @@ export class NotificationService {
   }
 
   // Show notification
-  static showNotification(title: string, options?: NotificationOptions): void {
+  static async showNotification(title: string, options?: NotificationOptions): Promise<void> {
     if (!this.isSupported()) {
       console.warn('Notifications not supported');
       return;
@@ -51,8 +51,18 @@ export class NotificationService {
     };
 
     try {
+      // Try to use Service Worker registration first (for mobile support)
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration) {
+          await registration.showNotification(title, notificationOptions);
+          return;
+        }
+      }
+
+      // Fallback to standard Notification API
       const notification = new Notification(title, notificationOptions);
-      
+
       // Auto close after 5 seconds
       setTimeout(() => {
         notification.close();
