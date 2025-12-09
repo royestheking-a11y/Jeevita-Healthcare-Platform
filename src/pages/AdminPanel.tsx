@@ -509,7 +509,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         subtitle: carouselForm.subtitle,
         cta: carouselForm.cta,
         buttonText: carouselForm.buttonText,
-        buttonType: carouselForm.buttonType,
+        buttonType: carouselForm.buttonType as 'order' | 'appointment' | 'hospital' | 'custom',
         buttonLink: carouselForm.buttonLink,
       });
       setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: '', buttonType: '', buttonLink: '' });
@@ -554,7 +554,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         subtitle: carouselForm.subtitle,
         cta: carouselForm.cta,
         buttonText: carouselForm.buttonText,
-        buttonType: carouselForm.buttonType,
+        buttonType: carouselForm.buttonType as 'order' | 'appointment' | 'hospital' | 'custom',
         buttonLink: carouselForm.buttonLink,
       });
       setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '' });
