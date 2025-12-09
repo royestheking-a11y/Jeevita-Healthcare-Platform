@@ -2770,16 +2770,6 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                         placeholder="Book appointments with top specialists"
                       />
                     </div>
-                    <div>
-                      <Label>Call-to-Action Button Text</Label>
-                      <Input
-                        value={carouselForm.cta}
-                        onChange={(e) => setCarouselForm({ ...carouselForm, cta: e.target.value })}
-                        placeholder="Get Started"
-                      />
-                    </div>
-
-                    <Separator className="my-4" />
 
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold text-gray-900">Button Configuration</h3>
