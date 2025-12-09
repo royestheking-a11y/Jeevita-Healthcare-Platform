@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Upload, Shield, Clock, Pill, FileText, CheckCircle, X, Sparkles, ShoppingCart, AlertTriangle, Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { Upload, Shield, Clock, Pill, FileText, CheckCircle, X, Sparkles, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,7 +11,6 @@ import { ImageUploadWithCrop } from './ImageUploadWithCrop';
 import { toast } from 'sonner';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 import { prescriptionsAPI } from '../utils/api';
-import { Input } from './ui/input';
 
 interface PrescriptionUploadSectionProps {
   onNavigate: (page: string) => void;
@@ -32,23 +31,13 @@ interface AnalyzedMedicine {
 export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSectionProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { addPrescription, medicines } = useData();
+  const { addPrescription } = useData();
   const { addToCart } = useCart();
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [prescriptionImage, setPrescriptionImage] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{ verified: AnalyzedMedicine[], unverified: AnalyzedMedicine[] } | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Filter medicines based on search query
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim() || searchQuery.length < 2) return [];
-    const query = searchQuery.toLowerCase();
-    return (medicines || [])
-      .filter((med: any) => med.inStock && med.name.toLowerCase().includes(query))
-      .slice(0, 10); // Limit to 10 results
-  }, [searchQuery, medicines]);
 
   const features = [
     { icon: Shield, title: 'Secure Upload', description: 'Your prescription is safely encrypted' },
@@ -66,12 +55,10 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
       // 1. Upload image first if it's base64
       let imageUrl = prescriptionImage;
       if (prescriptionImage.startsWith('data:')) {
-        toast.info('Uploading image...');
         imageUrl = await uploadToCloudinary(prescriptionImage, 'prescriptions');
       }
 
-      // 2. Call server API which uses OCR.space for text extraction
-      toast.info('Analyzing prescription...');
+      // 2. Call AI Analysis API
       const result = await prescriptionsAPI.analyze(imageUrl);
 
       if (result.success) {
@@ -79,18 +66,12 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
           verified: result.verifiedMedicines,
           unverified: result.unverifiedItems
         });
-        if (result.verifiedMedicines.length > 0) {
-          toast.success(`Found ${result.verifiedMedicines.length} verified medicines!`);
-        } else if (result.unverifiedItems.length > 0) {
-          toast.info(`Found ${result.unverifiedItems.length} items (not in stock). Please submit for manual review.`);
-        } else {
-          toast.info(result.message || 'No medicines found. Please submit for manual review.');
-        }
+        toast.success(`Found ${result.verifiedMedicines.length} verified medicines!`);
       }
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Analysis failed:', error);
-      toast.error(error.message || 'Failed to analyze prescription. Please try manual upload.');
+      toast.error('Failed to analyze prescription. Please try manual upload.');
     } finally {
       setAnalyzing(false);
     }
@@ -253,60 +234,62 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
 
       {/* Upload & Analyze Dialog */}
       <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gray-50/50 backdrop-blur-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-600" />
+            <DialogTitle className="flex items-center gap-2 text-2xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+              <Sparkles className="h-6 w-6 text-amber-500" />
               AI Prescription Analysis
             </DialogTitle>
-            <DialogDescription>
-              Upload your prescription. Our AI will identify medicines and check availability.
+            <DialogDescription className="text-gray-600 text-base">
+              Our advanced AI is ready to scan your prescription.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-8 mt-4">
             {/* Left: Upload Section */}
-            <div className="space-y-4">
-              <Label>Prescription Image</Label>
-              <ImageUploadWithCrop
-                currentImage={prescriptionImage}
-                onImageSelected={(image) => {
-                  console.log('Image selected, length:', image.length);
-                  setPrescriptionImage(image);
-                  setAnalysisResult(null); // Reset analysis on new image
-                }}
-                aspectRatio={4 / 3}
-                label=""
-              />
+            <div className="space-y-6">
+              <div className="bg-white p-4 rounded-2xl shadow-sm border border-amber-100">
+                <Label className="text-gray-700 font-semibold mb-2 block">1. Upload Image</Label>
+                <ImageUploadWithCrop
+                  currentImage={prescriptionImage}
+                  onImageSelected={(image) => {
+                    console.log('Image selected, length:', image.length);
+                    setPrescriptionImage(image);
+                    setAnalysisResult(null); // Reset analysis on new image
+                  }}
+                  aspectRatio={4 / 3}
+                  label=""
+                />
+              </div>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <Button
                   onClick={handleAnalyze}
-                  disabled={!prescriptionImage || analyzing || !!analysisResult}
-                  className={`w-full text-white shadow-lg transition-all duration-300 ${prescriptionImage && !analysisResult && !analyzing
-                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 animate-pulse scale-105'
-                    : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700'
-                    }`}
+                  disabled={!prescriptionImage || analyzing}
+                  className={`w-full h-14 text-lg font-bold text-white shadow-xl transition-all duration-300 rounded-xl flex items-center justify-center gap-3 ${prescriptionImage && !analysisResult && !analyzing
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/30 animate-pulse scale-[1.02] border-2 border-white/20'
+                      : 'bg-gray-300 cursor-not-allowed'
+                    } ${analyzing ? 'bg-gradient-to-r from-amber-400 to-orange-400 cursor-wait' : ''}`}
                 >
                   {analyzing ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                      Analyzing with AI...
+                      <div className="animate-spin rounded-full h-6 w-6 border-3 border-white border-t-transparent"></div>
+                      Processing...
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      {analysisResult ? 'Analysis Complete' : 'Step 2: Analyze Prescription'}
+                      <Sparkles className="h-6 w-6" />
+                      {analysisResult ? 'Re-Analyze Prescription' : 'Step 2: Analyze Now'}
                     </>
                   )}
                 </Button>
 
-                <div className="relative">
+                <div className="relative py-2">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
+                    <span className="w-full border-t border-gray-200" />
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-gray-500">Or</span>
+                  <div className="relative flex justify-center text-xs uppercase font-medium">
+                    <span className="bg-gray-50 px-3 text-gray-400 tracking-wider">Options</span>
                   </div>
                 </div>
 
@@ -314,112 +297,87 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
                   variant="outline"
                   onClick={handleManualUpload}
                   disabled={!prescriptionImage || uploading}
-                  className="w-full"
+                  className="w-full border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
                 >
-                  {uploading ? 'Uploading...' : 'Submit for Manual Review'}
+                  {uploading ? 'Uploading...' : 'Skip to Manual Submission'}
                 </Button>
-
-                {/* Medicine Search Box */}
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 mt-2">
-                  <Label className="text-sm font-medium text-blue-800 flex items-center gap-1 mb-2">
-                    <Search className="h-4 w-4" />
-                    Search Medicine Directly
-                  </Label>
-                  <Input
-                    type="text"
-                    placeholder="Type medicine name (e.g., Napa Extra)"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-white"
-                  />
-                  {searchResults.length > 0 && (
-                    <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
-                      {searchResults.map((med: any) => (
-                        <div
-                          key={med._id}
-                          className="flex items-center justify-between bg-white p-2 rounded border hover:border-blue-300 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            {med.image && (
-                              <img src={med.image} alt={med.name} className="h-8 w-8 object-contain rounded" />
-                            )}
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{med.name}</p>
-                              <p className="text-xs text-green-600 font-bold">৳{med.price}</p>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              addToCart({ id: med._id, name: med.name, price: med.price, image: med.image || '' });
-                              toast.success(`${med.name} added to cart!`);
-                              setSearchQuery('');
-                            }}
-                            className="bg-green-600 hover:bg-green-700 h-7 text-xs"
-                          >
-                            <ShoppingCart className="h-3 w-3 mr-1" /> Add
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {searchQuery.length >= 2 && searchResults.length === 0 && (
-                    <p className="text-xs text-gray-500 mt-2">No medicines found matching "{searchQuery}"</p>
-                  )}
-                </div>
               </div>
             </div>
 
             {/* Right: Analysis Results */}
-            <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[400px]">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-gray-500" />
+            <div className="space-y-4 bg-white p-6 rounded-2xl shadow-lg border border-amber-100 flex flex-col min-h-[500px]">
+              <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2 border-b border-gray-100 pb-4">
+                <FileText className="h-5 w-5 text-amber-500" />
                 Analysis Results
               </h3>
 
               {!analysisResult && !analyzing && (
-                <div className="h-full flex flex-col items-center justify-center text-gray-400 text-center py-12">
-                  <Sparkles className="h-12 w-12 mb-4 opacity-20" />
-                  <p>Upload an image and click "Analyze" <br />to see identified medicines here</p>
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center space-y-4">
+                  <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-2">
+                    <Sparkles className="h-10 w-10 text-amber-300" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium text-gray-600 text-lg">Ready to Analyze</p>
+                    <p className="text-sm">Upload an image and click the button to start</p>
+                  </div>
                 </div>
               )}
 
               {analyzing && (
-                <div className="space-y-4">
+                <div className="space-y-6 py-8">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="animate-pulse flex gap-4 bg-white p-3 rounded-lg border">
-                      <div className="h-12 w-12 bg-gray-200 rounded"></div>
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    <div key={i} className="animate-pulse flex gap-4">
+                      <div className="h-16 w-16 bg-gray-100 rounded-xl"></div>
+                      <div className="flex-1 space-y-3 py-1">
+                        <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-100 rounded w-1/2"></div>
                       </div>
                     </div>
                   ))}
+                  <div className="text-center text-sm text-gray-400 mt-4 animate-bounce">
+                    Identifying medicines...
+                  </div>
                 </div>
               )}
 
               {analysisResult && (
-                <div className="space-y-6">
+                <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                   {/* Verified Medicines */}
                   {analysisResult.verified.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-green-700 mb-3 flex items-center gap-2">
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold text-green-600 uppercase tracking-wider flex items-center gap-2 mb-2">
                         <CheckCircle className="h-4 w-4" />
-                        Available Matches ({analysisResult.verified.length})
+                        Identified & Available ({analysisResult.verified.length})
                       </h4>
                       <div className="space-y-3">
-                        {analysisResult.verified.map((item: AnalyzedMedicine, idx: number) => (
-                          <div key={idx} className="bg-white p-3 rounded-lg border border-green-100 shadow-sm flex items-center gap-3">
-                            {item.matchImage && (
-                              <img src={item.matchImage} alt={item.matchName} className="h-12 w-12 object-contain rounded bg-gray-50" />
-                            )}
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-900">{item.matchName}</p>
-                              <p className="text-xs text-gray-500">{item.form} • {item.dosage}</p>
-                              <p className="text-sm font-bold text-amber-600">৳{item.matchPrice}</p>
+                        {analysisResult.verified.map((item, idx) => (
+                          <div key={idx} className="group bg-white p-4 rounded-xl border border-green-100 shadow-sm hover:shadow-md hover:border-green-200 transition-all flex items-start gap-4">
+                            <div className="flex-shrink-0 w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100">
+                              {item.matchImage ? (
+                                <img src={item.matchImage} alt={item.matchName} className="w-full h-full object-contain" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Pill className="h-6 w-6 text-gray-300" />
+                                </div>
+                              )}
                             </div>
-                            <Button size="sm" onClick={() => handleAddToCart(item)} className="bg-green-600 hover:bg-green-700 h-8">
-                              <ShoppingCart className="h-3 w-3 mr-1" /> Add
+
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-gray-900 truncate">{item.matchName}</p>
+                              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                <span className="bg-gray-100 px-2 py-0.5 rounded-full">{item.form || 'Medicine'}</span>
+                                {item.dosage && (<span>• {item.dosage}</span>)}
+                              </div>
+                              <p className="text-lg font-bold text-amber-600 mt-2">৳{item.matchPrice}</p>
+                            </div>
+
+                            <Button
+                              onClick={() => handleAddToCart(item)}
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white shadow-green-200 shadow-lg shrink-0 rounded-lg h-10 px-4"
+                            >
+                              <ShoppingCart className="h-4 w-4 mr-1.5" />
+                              Add
                             </Button>
                           </div>
                         ))}
@@ -429,31 +387,38 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
 
                   {/* Unverified Items */}
                   {analysisResult.unverified.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-amber-700 mb-3 flex items-center gap-2">
+                    <div className="space-y-3 pt-4 border-t border-gray-100">
+                      <h4 className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4" />
-                        Unverified Items ({analysisResult.unverified.length})
+                        Needs Review ({analysisResult.unverified.length})
                       </h4>
-                      <div className="space-y-2">
-                        {analysisResult.unverified.map((item: AnalyzedMedicine, idx: number) => (
-                          <div key={idx} className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-sm">
-                            <p className="font-medium text-gray-900">{item.name}</p>
-                            <p className="text-xs text-gray-500">
-                              {item.dosage} {item.form} - Not available in stock
-                            </p>
+                      <div className="bg-amber-50 rounded-xl p-4 space-y-3 border border-amber-100">
+                        {analysisResult.unverified.map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-3 text-sm pb-3 border-b border-amber-100/50 last:border-0 last:pb-0">
+                            <div className="mt-0.5">
+                              <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
+                            </div>
+                            <div>
+                              <p className="font-medium text-amber-900">{item.name}</p>
+                              <p className="text-xs text-amber-700 mt-0.5">
+                                {item.dosage} {item.form}
+                                {(!item.dosage && !item.form) ? 'Details unclear' : ''}
+                              </p>
+                            </div>
+                            <span className="ml-auto text-xs font-medium text-amber-500 bg-white/50 px-2 py-1 rounded">Out of Stock</span>
                           </div>
                         ))}
+                        <p className="text-xs text-amber-600/80 italic pt-2 mt-2 border-t border-amber-100/50">
+                          * Submit for manual review so our pharmacist can find these for you.
+                        </p>
                       </div>
-                      <p className="text-xs text-gray-500 mt-2 italic">
-                        * Please submit for manual review to process unverified items.
-                      </p>
                     </div>
                   )}
 
                   {analysisResult.verified.length === 0 && analysisResult.unverified.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No medicines identified clearly.</p>
-                      <p className="text-sm">Please try a clearer image or submit for manual review.</p>
+                    <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                      <p className="font-medium text-gray-900">No medicines identified</p>
+                      <p className="text-sm text-gray-500 mt-1">Try a clearer image or use manual submission.</p>
                     </div>
                   )}
                 </div>

@@ -1,60 +1,33 @@
 import express from 'express';
 import { Prescription } from '../models/Prescription.js';
 import { deleteImage } from '../utils/cloudinary.js';
-import { createWorker } from 'tesseract.js';
+
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Medicine } from '../models/Medicine.js';
 
 const router = express.Router();
 
-// Helper to escape regex special characters
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+// Initialize Gemini
+// Initialize Gemini with Key Rotation
+const getGeminiClient = () => {
+  const keys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '').split(',').map(k => k.trim()).filter(k => k);
 
-// Parse OCR text to extract potential medicine names
-function extractMedicineNames(text) {
-  // Split by newlines and common separators
-  const lines = text.split(/[\n\r]+/).map(line => line.trim()).filter(line => line.length > 2);
-
-  const potentialMedicines = [];
-
-  for (const line of lines) {
-    // Skip lines that look like headers or instructions
-    if (line.match(/^(dr\.|doctor|patient|date|signature|rx|prescription)/i)) continue;
-    if (line.match(/^[\d\s\-\/\.]+$/)) continue; // Skip date-like or number-only lines
-
-    // Look for medicine-like patterns (words with optional dosage)
-    // Common format: "Medicine Name 500mg" or "Paracetamol Tab"
-    const medicineMatch = line.match(/^([A-Za-z][A-Za-z\s\-]+)/);
-    if (medicineMatch) {
-      const name = medicineMatch[1].trim();
-      if (name.length >= 3 && name.length <= 50) {
-        // Extract dosage if present
-        const dosageMatch = line.match(/(\d+\s*(?:mg|ml|mcg|g|iu|%|tab|cap|tablet|capsule)s?)/i);
-        const quantityMatch = line.match(/x\s*(\d+)|(\d+)\s*(?:times|pcs|pieces|nos)/i);
-        const formMatch = line.match(/(tablet|capsule|syrup|injection|cream|ointment|gel|drops|inhaler|powder)/i);
-
-        potentialMedicines.push({
-          name: name.replace(/\s+/g, ' ').trim(),
-          dosage: dosageMatch ? dosageMatch[1] : null,
-          quantity: quantityMatch ? (quantityMatch[1] || quantityMatch[2]) : null,
-          form: formMatch ? formMatch[1] : null
-        });
-      }
-    }
+  if (keys.length === 0) {
+    throw new Error('No GEMINI_API_KEYS found');
   }
 
-  // Remove duplicates by name
-  const seen = new Set();
-  return potentialMedicines.filter(med => {
-    const key = med.name.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  // Randomly select a key to distribute load
+  const randomKey = keys[Math.floor(Math.random() * keys.length)];
+  // console.log(`Using Gemini Key: ...${randomKey.slice(-4)}`); 
+  return new GoogleGenerativeAI(randomKey);
+};
+
+// Helper to escape regex special characters
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
-// Analyze prescription using OCR.space API (500 free requests/day)
+// Analyze prescription image
 router.post('/analyze', async (req, res) => {
   try {
     const { imageUrl } = req.body;
@@ -63,55 +36,58 @@ router.post('/analyze', async (req, res) => {
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
-    const OCR_API_KEY = process.env.OCR_SPACE_API_KEY;
-    if (!OCR_API_KEY) {
-      console.error('OCR_SPACE_API_KEY is not set');
-      return res.status(500).json({ error: 'OCR service not configured. Please set OCR_SPACE_API_KEY.' });
+    if (!process.env.GEMINI_API_KEYS && !process.env.GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEYS is not set');
+      return res.status(500).json({ error: 'AI service configuration missing' });
     }
 
-    console.log('Calling OCR.space API for:', imageUrl);
+    // Fetch image as buffer
+    const imageResponse = await fetch(imageUrl);
+    const arrayBuffer = await imageResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // Call OCR.space API
-    const formData = new FormData();
-    formData.append('url', imageUrl);
-    formData.append('apikey', OCR_API_KEY);
-    formData.append('language', 'eng');
-    formData.append('isOverlayRequired', 'false');
-    formData.append('detectOrientation', 'true');
-    formData.append('scale', 'true');
-    formData.append('OCREngine', '2'); // Engine 2 is better for handwriting
+    // Call Gemini with rotated key
+    const genAI = getGeminiClient();
+    // Using gemini-flash-latest as it is the confirmed working model alias for this key
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+    const prompt = `Analyze this prescription image. Identify all medicines listed. 
+    Return a JSON array where each object has:
+    - 'name': The name of the medicine (string)
+    - 'dosage': The dosage or strength (string, e.g. "500mg"), or null if not clear
+    - 'quantity': The quantity (string or number), or null if not clear
+    - 'form': The form (string, e.g. "Tablet", "Capsule"), or null if not clear
+    
+    Only return valid JSON. Do not include markdown formatting.`;
 
-    const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      body: formData
-    });
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: buffer.toString('base64'),
+          mimeType: imageResponse.headers.get('content-type') || 'image/jpeg'
+        }
+      }
+    ]);
 
-    const ocrResult = await ocrResponse.json();
+    const response = await result.response;
+    const text = response.text();
 
-    if (ocrResult.IsErroredOnProcessing) {
-      console.error('OCR.space error:', ocrResult.ErrorMessage);
-      return res.status(500).json({ error: 'OCR failed: ' + (ocrResult.ErrorMessage || 'Unknown error') });
+    // Clean up response if it contains markdown code blocks
+    const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    let aiMedicines = [];
+    try {
+      aiMedicines = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', text);
+      return res.status(500).json({ error: 'Failed to parse AI analysis results' });
     }
-
-    const ocrText = ocrResult.ParsedResults?.[0]?.ParsedText || '';
-    console.log('OCR extracted text:', ocrText.substring(0, 300));
-
-    if (!ocrText.trim()) {
-      return res.json({
-        success: true,
-        verifiedMedicines: [],
-        unverifiedItems: [],
-        message: 'Could not read text from image. Please try a clearer image or submit for manual review.'
-      });
-    }
-
-    // Extract potential medicine names from OCR text
-    const extractedMedicines = extractMedicineNames(ocrText);
-    console.log('Potential medicines found:', extractedMedicines.map(m => m.name));
 
     // Verify against database
-    const verificationResults = await Promise.all(extractedMedicines.map(async (item) => {
+    const verificationResults = await Promise.all(aiMedicines.map(async (item) => {
+      // Safe regex search
       const escapedName = escapeRegExp(item.name);
+      // Search for medicine names that contain the extracted name (case-insensitive)
       const match = await Medicine.findOne({
         name: { $regex: escapedName, $options: 'i' },
         inStock: true
@@ -130,18 +106,23 @@ router.post('/analyze', async (req, res) => {
     const verifiedMedicines = verificationResults.filter(item => item.verified);
     const unverifiedItems = verificationResults.filter(item => !item.verified);
 
-    console.log(`Analysis complete: ${verifiedMedicines.length} verified, ${unverifiedItems.length} unverified`);
-
     res.json({
       success: true,
       verifiedMedicines,
-      unverifiedItems,
-      rawText: ocrText
+      unverifiedItems
     });
 
   } catch (error) {
     console.error('Analysis error:', error);
-    res.status(500).json({ error: 'Failed to analyze prescription: ' + error.message });
+    const status = error.status || 500;
+    const message = error.message || 'Failed to analyze prescription';
+
+    // Check for Gemini Rate Limit
+    if (status === 429 || message.includes('429')) {
+      return res.status(429).json({ error: 'AI Service is busy (Rate Limit). Please try again in 1 minute.' });
+    }
+
+    res.status(status).json({ error: message });
   }
 });
 
