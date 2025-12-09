@@ -54,7 +54,8 @@ function extractMedicineNames(text) {
   });
 }
 
-// Analyze prescription image using Tesseract OCR
+// Analyze prescription image - OCR disabled due to serverless timeout
+// Tesseract.js is too slow for Vercel's 10-second timeout limit
 router.post('/analyze', async (req, res) => {
   try {
     const { imageUrl } = req.body;
@@ -63,55 +64,17 @@ router.post('/analyze', async (req, res) => {
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
-    console.log('Starting OCR analysis for:', imageUrl);
-
-    // Create Tesseract worker
-    const worker = await createWorker('eng');
-
-    // Perform OCR on the image URL
-    const { data: { text } } = await worker.recognize(imageUrl);
-    await worker.terminate();
-
-    console.log('OCR Text extracted:', text.substring(0, 200) + '...');
-
-    // Extract potential medicine names from OCR text
-    const extractedMedicines = extractMedicineNames(text);
-
-    console.log('Potential medicines found:', extractedMedicines.map(m => m.name));
-
-    // Verify against database
-    const verificationResults = await Promise.all(extractedMedicines.map(async (item) => {
-      const escapedName = escapeRegExp(item.name);
-      // Search for medicine names that contain the extracted name (case-insensitive)
-      const match = await Medicine.findOne({
-        name: { $regex: escapedName, $options: 'i' },
-        inStock: true
-      });
-
-      return {
-        ...item,
-        verified: !!match,
-        matchId: match ? match._id : null,
-        matchName: match ? match.name : null,
-        matchPrice: match ? match.price : null,
-        matchImage: match ? match.image : null
-      };
-    }));
-
-    const verifiedMedicines = verificationResults.filter(item => item.verified);
-    const unverifiedItems = verificationResults.filter(item => !item.verified);
-
-    console.log(`Analysis complete: ${verifiedMedicines.length} verified, ${unverifiedItems.length} unverified`);
-
+    // OCR is disabled - return helpful response for manual processing
     res.json({
       success: true,
-      verifiedMedicines,
-      unverifiedItems,
-      rawText: text // Include raw text for debugging
+      verifiedMedicines: [],
+      unverifiedItems: [],
+      message: 'Automatic analysis is temporarily unavailable. Please use "Submit for Manual Review" to have our pharmacist process your prescription.',
+      ocrDisabled: true
     });
 
   } catch (error) {
-    console.error('OCR Analysis error:', error);
+    console.error('Analysis error:', error);
     res.status(500).json({ error: 'Failed to analyze prescription: ' + error.message });
   }
 });

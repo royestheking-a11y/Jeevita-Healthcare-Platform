@@ -62,11 +62,24 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
       const result = await prescriptionsAPI.analyze(imageUrl);
 
       if (result.success) {
-        setAnalysisResult({
-          verified: result.verifiedMedicines,
-          unverified: result.unverifiedItems
-        });
-        toast.success(`Found ${result.verifiedMedicines.length} verified medicines!`);
+        // Check if OCR is disabled
+        if (result.ocrDisabled) {
+          toast.info('AI analysis is temporarily unavailable. Please use "Submit for Manual Review" below.');
+          setAnalysisResult({
+            verified: [],
+            unverified: []
+          });
+        } else {
+          setAnalysisResult({
+            verified: result.verifiedMedicines,
+            unverified: result.unverifiedItems
+          });
+          if (result.verifiedMedicines.length > 0) {
+            toast.success(`Found ${result.verifiedMedicines.length} verified medicines!`);
+          } else {
+            toast.info('No medicines matched in our database. Please submit for manual review.');
+          }
+        }
       }
 
     } catch (error) {
