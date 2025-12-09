@@ -55,30 +55,34 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
       // 1. Upload image first if it's base64
       let imageUrl = prescriptionImage;
       if (prescriptionImage.startsWith('data:')) {
+        toast.info('Uploading image...');
         imageUrl = await uploadToCloudinary(prescriptionImage, 'prescriptions');
       }
 
-      // 2. Call AI Analysis API
-      const result = await prescriptionsAPI.analyze(imageUrl);
+      // 2. Run OCR in the browser using Tesseract.js
+      toast.info('Reading prescription text...');
+      const Tesseract = await import('tesseract.js');
+      const worker = await Tesseract.createWorker('eng');
+      const { data: { text } } = await worker.recognize(prescriptionImage);
+      await worker.terminate();
+
+      console.log('OCR extracted text:', text.substring(0, 200));
+
+      // 3. Send extracted text to server for matching
+      toast.info('Matching medicines...');
+      const result = await prescriptionsAPI.analyze(imageUrl, text);
 
       if (result.success) {
-        // Check if OCR is disabled
-        if (result.ocrDisabled) {
-          toast.info('AI analysis is temporarily unavailable. Please use "Submit for Manual Review" below.');
-          setAnalysisResult({
-            verified: [],
-            unverified: []
-          });
+        setAnalysisResult({
+          verified: result.verifiedMedicines,
+          unverified: result.unverifiedItems
+        });
+        if (result.verifiedMedicines.length > 0) {
+          toast.success(`Found ${result.verifiedMedicines.length} verified medicines!`);
+        } else if (result.unverifiedItems.length > 0) {
+          toast.info(`Found ${result.unverifiedItems.length} items (not in stock). Please submit for manual review.`);
         } else {
-          setAnalysisResult({
-            verified: result.verifiedMedicines,
-            unverified: result.unverifiedItems
-          });
-          if (result.verifiedMedicines.length > 0) {
-            toast.success(`Found ${result.verifiedMedicines.length} verified medicines!`);
-          } else {
-            toast.info('No medicines matched in our database. Please submit for manual review.');
-          }
+          toast.info('No medicines found. Please submit for manual review.');
         }
       }
 

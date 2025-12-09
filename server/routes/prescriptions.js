@@ -54,23 +54,58 @@ function extractMedicineNames(text) {
   });
 }
 
-// Analyze prescription image - OCR disabled due to serverless timeout
-// Tesseract.js is too slow for Vercel's 10-second timeout limit
+// Analyze prescription - accepts OCR text from client-side Tesseract
+// Client does the heavy OCR work, server just matches against database
 router.post('/analyze', async (req, res) => {
   try {
-    const { imageUrl } = req.body;
+    const { ocrText, imageUrl } = req.body;
 
-    if (!imageUrl) {
-      return res.status(400).json({ error: 'Image URL is required' });
+    // If no OCR text provided, return instructions
+    if (!ocrText) {
+      return res.json({
+        success: true,
+        verifiedMedicines: [],
+        unverifiedItems: [],
+        message: 'Please wait while we analyze your prescription...',
+        needsClientOCR: true
+      });
     }
 
-    // OCR is disabled - return helpful response for manual processing
+    console.log('Received OCR text from client, length:', ocrText.length);
+
+    // Extract potential medicine names from OCR text
+    const extractedMedicines = extractMedicineNames(ocrText);
+
+    console.log('Potential medicines found:', extractedMedicines.map(m => m.name));
+
+    // Verify against database
+    const verificationResults = await Promise.all(extractedMedicines.map(async (item) => {
+      const escapedName = escapeRegExp(item.name);
+      // Search for medicine names that contain the extracted name (case-insensitive)
+      const match = await Medicine.findOne({
+        name: { $regex: escapedName, $options: 'i' },
+        inStock: true
+      });
+
+      return {
+        ...item,
+        verified: !!match,
+        matchId: match ? match._id : null,
+        matchName: match ? match.name : null,
+        matchPrice: match ? match.price : null,
+        matchImage: match ? match.image : null
+      };
+    }));
+
+    const verifiedMedicines = verificationResults.filter(item => item.verified);
+    const unverifiedItems = verificationResults.filter(item => !item.verified);
+
+    console.log(`Analysis complete: ${verifiedMedicines.length} verified, ${unverifiedItems.length} unverified`);
+
     res.json({
       success: true,
-      verifiedMedicines: [],
-      unverifiedItems: [],
-      message: 'Automatic analysis is temporarily unavailable. Please use "Submit for Manual Review" to have our pharmacist process your prescription.',
-      ocrDisabled: true
+      verifiedMedicines,
+      unverifiedItems
     });
 
   } catch (error) {

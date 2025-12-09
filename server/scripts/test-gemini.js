@@ -4,22 +4,23 @@ import dotenv from 'dotenv';
 // Load env vars
 dotenv.config();
 
-const API_KEY = process.env.GEMINI_API_KEY;
+// Use a specific new key for testing
+const API_KEY = 'AIzaSyB9lVLJhReeLuSZwEG468gd6SBb40KxXGA';
 
 if (!API_KEY) {
     console.error('❌ GEMINI_API_KEY not found in environment');
     process.exit(1);
 }
 
-console.log('✅ Found API Key:', API_KEY.substring(0, 10) + '...');
+console.log('✅ Testing API Key:', API_KEY.substring(0, 10) + '...');
 
 async function testGemini() {
     try {
         const genAI = new GoogleGenerativeAI(API_KEY);
 
-        // TEST 1: Basic Text Check (gemini-2.0-flash)
-        console.log('🧪 TEST 1: Checking API Key with gemini-2.0-flash (Text Only)...');
-        const textModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        // TEST 1: Basic Text Check (gemini-1.5-flash)
+        console.log('🧪 TEST 1: Checking API Key with gemini-1.5-flash (Text Only)...');
+        const textModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const textResult = await textModel.generateContent("Hello, are you working?");
         const textResponse = await textResult.response;
         console.log('✅ Text Response:', textResponse.text());
@@ -29,7 +30,7 @@ async function testGemini() {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         // Sample prescription image
-        const imageUrl = 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Prescription_drug.jpg';
+        const imageUrl = 'https://res.cloudinary.com/dchrmef0d/image/upload/v1765294406/jeevita/prescriptions/djalnrutjbg3q5tq8pss.jpg';
 
         console.log('Fetching image:', imageUrl);
         const imageResponse = await fetch(imageUrl);
