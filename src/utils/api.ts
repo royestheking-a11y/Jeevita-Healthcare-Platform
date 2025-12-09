@@ -79,6 +79,7 @@ export const prescriptionsAPI = {
   create: (data: any) => apiCall<any>('/prescriptions', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) => apiCall<any>(`/prescriptions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => apiCall<any>(`/prescriptions/${id}`, { method: 'DELETE' }),
+  analyze: (imageUrl: string) => apiCall<any>('/prescriptions/analyze', { method: 'POST', body: JSON.stringify({ imageUrl }) }),
 };
 
 // Payments API
