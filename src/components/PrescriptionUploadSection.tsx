@@ -234,10 +234,10 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
 
       {/* Upload & Analyze Dialog */}
       <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gray-50/50 backdrop-blur-sm">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-2xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-              <Sparkles className="h-6 w-6 text-amber-500" />
+            <DialogTitle className="flex items-center gap-3 text-2xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent py-1">
+              <Sparkles className="h-6 w-6 text-amber-500 flex-shrink-0" />
               AI Prescription Analysis
             </DialogTitle>
             <DialogDescription className="text-gray-600 text-base">
@@ -267,7 +267,7 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
                   onClick={handleAnalyze}
                   disabled={!prescriptionImage || analyzing}
                   className={`w-full h-14 text-lg font-bold text-white shadow-xl transition-all duration-300 rounded-xl flex items-center justify-center gap-3 ${prescriptionImage && !analysisResult && !analyzing
-                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/30 animate-pulse scale-[1.02] border-2 border-white/20'
+                      ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 shadow-amber-500/30 animate-pulse scale-[1.02]'
                       : 'bg-gray-300 cursor-not-allowed'
                     } ${analyzing ? 'bg-gradient-to-r from-amber-400 to-orange-400 cursor-wait' : ''}`}
                 >
@@ -279,7 +279,7 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
                   ) : (
                     <>
                       <Sparkles className="h-6 w-6" />
-                      {analysisResult ? 'Re-Analyze Prescription' : 'Step 2: Analyze Now'}
+                      {analysisResult ? 'Analyze Again' : 'Analyze Now'}
                     </>
                   )}
                 </Button>
@@ -307,7 +307,7 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
             {/* Right: Analysis Results */}
             <div className="space-y-4 bg-white p-6 rounded-2xl shadow-lg border border-amber-100 flex flex-col min-h-[500px]">
               <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2 border-b border-gray-100 pb-4">
-                <FileText className="h-5 w-5 text-amber-500" />
+                <FileText className="h-5 w-5 text-amber-500 flex-shrink-0" />
                 Analysis Results
               </h3>
 
@@ -345,39 +345,40 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
                   {/* Verified Medicines */}
                   {analysisResult.verified.length > 0 && (
                     <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-green-600 uppercase tracking-wider flex items-center gap-2 mb-2">
-                        <CheckCircle className="h-4 w-4" />
+                      <h4 className="text-sm font-bold text-green-700 uppercase tracking-wide flex items-center gap-2 mb-3 bg-green-50 p-2 rounded-lg">
+                        <CheckCircle className="h-5 w-5 flex-shrink-0" />
                         Identified & Available ({analysisResult.verified.length})
                       </h4>
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {analysisResult.verified.map((item, idx) => (
-                          <div key={idx} className="group bg-white p-4 rounded-xl border border-green-100 shadow-sm hover:shadow-md hover:border-green-200 transition-all flex items-start gap-4">
-                            <div className="flex-shrink-0 w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100">
-                              {item.matchImage ? (
-                                <img src={item.matchImage} alt={item.matchName} className="w-full h-full object-contain" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Pill className="h-6 w-6 text-gray-300" />
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-gray-900 truncate">{item.matchName}</p>
-                              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                                <span className="bg-gray-100 px-2 py-0.5 rounded-full">{item.form || 'Medicine'}</span>
-                                {item.dosage && (<span>• {item.dosage}</span>)}
+                          <div key={idx} className="group bg-white p-4 rounded-xl border border-green-100 shadow-sm hover:shadow-md hover:border-green-300 transition-all flex flex-col">
+                            <div className="flex items-start gap-4">
+                              <div className="flex-shrink-0 w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100">
+                                {item.matchImage ? (
+                                  <img src={item.matchImage} alt={item.matchName} className="w-full h-full object-contain" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Pill className="h-6 w-6 text-gray-300" />
+                                  </div>
+                                )}
                               </div>
-                              <p className="text-lg font-bold text-amber-600 mt-2">৳{item.matchPrice}</p>
+
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-gray-900 text-lg leading-tight break-words">{item.matchName}</p>
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-1.5">
+                                  <span className="bg-gray-100 px-2.5 py-1 rounded-full">{item.form || 'Medicine'}</span>
+                                  {item.dosage && (<span>• {item.dosage}</span>)}
+                                </div>
+                                <p className="text-xl font-bold text-amber-600 mt-2">৳{item.matchPrice}</p>
+                              </div>
                             </div>
 
                             <Button
                               onClick={() => handleAddToCart(item)}
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700 text-white shadow-green-200 shadow-lg shrink-0 rounded-lg h-10 px-4"
+                              className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white shadow-green-200 shadow-md rounded-lg h-11 flex items-center justify-center gap-2 text-sm font-semibold"
                             >
-                              <ShoppingCart className="h-4 w-4 mr-1.5" />
-                              Add
+                              <ShoppingCart className="h-4 w-4" />
+                              Add to Cart
                             </Button>
                           </div>
                         ))}
@@ -388,30 +389,31 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
                   {/* Unverified Items */}
                   {analysisResult.unverified.length > 0 && (
                     <div className="space-y-3 pt-4 border-t border-gray-100">
-                      <h4 className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4" />
+                      <h4 className="text-sm font-bold text-amber-700 uppercase tracking-wide flex items-center gap-2 mb-3 bg-amber-50 p-2 rounded-lg">
+                        <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                         Needs Review ({analysisResult.unverified.length})
                       </h4>
-                      <div className="bg-amber-50 rounded-xl p-4 space-y-3 border border-amber-100">
+                      <div className="bg-white rounded-xl border border-amber-100 divide-y divide-amber-100/50">
                         {analysisResult.unverified.map((item, idx) => (
-                          <div key={idx} className="flex items-start gap-3 text-sm pb-3 border-b border-amber-100/50 last:border-0 last:pb-0">
-                            <div className="mt-0.5">
-                              <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
+                          <div key={idx} className="p-3 hover:bg-amber-50/30 transition-colors">
+                            <div className="flex items-start gap-3">
+                              <div className="mt-1.5">
+                                <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                              </div>
+                              <div>
+                                <p className="font-medium text-amber-900">{item.name}</p>
+                                <p className="text-xs text-amber-700 mt-0.5">
+                                  {item.dosage} {item.form}
+                                  {(!item.dosage && !item.form) ? 'Details unclear' : ''}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium text-amber-900">{item.name}</p>
-                              <p className="text-xs text-amber-700 mt-0.5">
-                                {item.dosage} {item.form}
-                                {(!item.dosage && !item.form) ? 'Details unclear' : ''}
-                              </p>
-                            </div>
-                            <span className="ml-auto text-xs font-medium text-amber-500 bg-white/50 px-2 py-1 rounded">Out of Stock</span>
                           </div>
                         ))}
-                        <p className="text-xs text-amber-600/80 italic pt-2 mt-2 border-t border-amber-100/50">
-                          * Submit for manual review so our pharmacist can find these for you.
-                        </p>
                       </div>
+                      <p className="text-xs text-center text-amber-600/80 italic mt-2">
+                        * Submit for manual review so our pharmacist can find these for you.
+                      </p>
                     </div>
                   )}
 
