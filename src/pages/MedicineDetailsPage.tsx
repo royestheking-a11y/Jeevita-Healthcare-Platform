@@ -105,6 +105,45 @@ export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string,
                   {medicine.category}
                 </Badge>
               </div>
+
+
+              {/* Add to Cart Section */}
+              <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="font-medium text-gray-900">Quantity</span>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={quantity <= 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-8 text-center font-medium">{quantity}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQuantity(quantity + 1)}
+                      disabled={!medicine.inStock}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleAddToCart}
+                  disabled={!medicine.inStock}
+                  className="w-full bg-gray-900 hover:bg-black text-white shadow-lg transition-all"
+                  size="lg"
+                >
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Add to Cart - ৳{(medicine.price * quantity).toFixed(2)}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -142,39 +181,7 @@ export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string,
                   <p className="text-3xl text-amber-600">৳{medicine.price}</p>
                 </div>
 
-                {/* Quantity Selector */}
-                <div className="mb-6">
-                  <label className="block text-sm text-gray-600 mb-2">Quantity</label>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      disabled={quantity <= 1}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <span className="w-16 text-center text-xl">{quantity}</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setQuantity(quantity + 1)}
-                      disabled={!medicine.inStock}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleAddToCart}
-                  disabled={!medicine.inStock}
-                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:bg-gray-300"
-                  size="lg"
-                >
-                  <ShoppingCart className="h-5 w-5 mr-2" />
-                  Add to Cart - ৳{(medicine.price * quantity).toFixed(2)}
-                </Button>
+                {/* Quantity and Add to Cart moved to left column */}
               </CardContent>
             </Card>
 
@@ -251,6 +258,6 @@ export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string,
 
 
       </div>
-    </div>
+    </div >
   );
 }
