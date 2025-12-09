@@ -107,6 +107,9 @@ export interface CarouselSlide {
   title: string;
   subtitle: string;
   cta: string;
+  buttonText?: string;
+  buttonType?: 'order' | 'appointment' | 'hospital' | 'custom';
+  buttonLink?: string;
 }
 
 export interface UserActivity {

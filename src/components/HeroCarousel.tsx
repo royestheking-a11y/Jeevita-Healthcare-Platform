@@ -16,15 +16,44 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
     image: slide.image,
     title: slide.title,
     subtitle: slide.subtitle,
-    cta: slide.cta,
+    cta: slide.buttonText || slide.cta,
     action: () => {
-      const ctaText = slide.cta.toLowerCase();
-      if (ctaText.includes('medicine')) {
-        onNavigate('medicines');
-      } else if (ctaText.includes('hospital')) {
-        onNavigate('hospitals');
+      // Use buttonType if available, otherwise fall back to old logic
+      const buttonType = slide.buttonType;
+      if (buttonType) {
+        switch (buttonType) {
+          case 'order':
+            onNavigate('medicines');
+            break;
+          case 'appointment':
+            onNavigate('doctors');
+            break;
+          case 'hospital':
+            onNavigate('hospitals');
+            break;
+          case 'custom':
+            if (slide.buttonLink) {
+              // Handle custom links
+              if (slide.buttonLink.startsWith('http')) {
+                window.open(slide.buttonLink, '_blank');
+              } else {
+                // Internal route - extract page name
+                const page = slide.buttonLink.replace('/', '');
+                if (page) onNavigate(page);
+              }
+            }
+            break;
+        }
       } else {
-        onNavigate('doctors');
+        // Fallback to old logic for backward compatibility
+        const ctaText = slide.cta.toLowerCase();
+        if (ctaText.includes('medicine')) {
+          onNavigate('medicines');
+        } else if (ctaText.includes('hospital')) {
+          onNavigate('hospitals');
+        } else {
+          onNavigate('doctors');
+        }
       }
     }
   }));

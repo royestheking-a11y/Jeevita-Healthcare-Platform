@@ -107,7 +107,10 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
 
 
   const [carouselForm, setCarouselForm] = useState({
-    title: '', subtitle: '', cta: '', image: ''
+    title: '', subtitle: '', cta: '', image: '',
+    buttonText: 'Get Started',
+    buttonType: 'custom',
+    buttonLink: ''
   });
 
   // Load messages from API
@@ -505,8 +508,11 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         title: carouselForm.title,
         subtitle: carouselForm.subtitle,
         cta: carouselForm.cta,
+        buttonText: carouselForm.buttonText,
+        buttonType: carouselForm.buttonType,
+        buttonLink: carouselForm.buttonLink,
       });
-      setCarouselForm({ title: '', subtitle: '', cta: '', image: '' });
+      setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: '', buttonType: '', buttonLink: '' });
       setEditingCarousel(null);
       setShowCarouselForm(false);
       toast.success('Carousel slide added successfully!');
@@ -523,6 +529,9 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
       subtitle: slide.subtitle || '',
       cta: slide.cta || '',
       image: slide.image || '',
+      buttonText: slide.buttonText || 'Get Started',
+      buttonType: slide.buttonType || 'custom',
+      buttonLink: slide.buttonLink || '',
     });
     setShowCarouselForm(true);
   };
@@ -544,8 +553,11 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         title: carouselForm.title,
         subtitle: carouselForm.subtitle,
         cta: carouselForm.cta,
+        buttonText: carouselForm.buttonText,
+        buttonType: carouselForm.buttonType,
+        buttonLink: carouselForm.buttonLink,
       });
-      setCarouselForm({ title: '', subtitle: '', cta: '', image: '' });
+      setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '' });
       setEditingCarousel(null);
       setShowCarouselForm(false);
       toast.success('Carousel slide updated successfully!');
@@ -2690,7 +2702,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                 </div>
                 <Button onClick={() => {
                   setEditingCarousel(null);
-                  setCarouselForm({ title: '', subtitle: '', cta: '', image: '' });
+                  setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '' });
                   setShowCarouselForm(true);
                 }} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
                   <Plus className="h-4 w-4 mr-2" />
@@ -2731,7 +2743,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                 setShowCarouselForm(open);
                 if (!open) {
                   setEditingCarousel(null);
-                  setCarouselForm({ title: '', subtitle: '', cta: '', image: '' });
+                  setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '' });
                 }
               }}>
                 <DialogContent className="max-w-2xl">
@@ -2766,6 +2778,58 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                         placeholder="Get Started"
                       />
                     </div>
+
+                    <Separator className="my-4" />
+
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Button Configuration</h3>
+
+                      <div>
+                        <Label>Button Type</Label>
+                        <Select
+                          value={carouselForm.buttonType}
+                          onValueChange={(value) => setCarouselForm({ ...carouselForm, buttonType: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select button type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="order">Order Medicines</SelectItem>
+                            <SelectItem value="appointment">Book Appointment</SelectItem>
+                            <SelectItem value="hospital">Find Hospital</SelectItem>
+                            <SelectItem value="custom">Custom Link</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {carouselForm.buttonType === 'order' && 'Navigates to Medicines page'}
+                          {carouselForm.buttonType === 'appointment' && 'Navigates to Doctors page'}
+                          {carouselForm.buttonType === 'hospital' && 'Navigates to Hospitals page'}
+                          {carouselForm.buttonType === 'custom' && 'Use your own custom link below'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label>Button Text</Label>
+                        <Input
+                          value={carouselForm.buttonText}
+                          onChange={(e) => setCarouselForm({ ...carouselForm, buttonText: e.target.value })}
+                          placeholder="Get Started"
+                        />
+                      </div>
+
+                      {carouselForm.buttonType === 'custom' && (
+                        <div>
+                          <Label>Custom Link</Label>
+                          <Input
+                            value={carouselForm.buttonLink}
+                            onChange={(e) => setCarouselForm({ ...carouselForm, buttonLink: e.target.value })}
+                            placeholder="/services or https://example.com"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Enter a relative path (/page) or full URL (https://...)</p>
+                        </div>
+                      )}
+                    </div>
+
                     <div>
                       <ImageUploadWithCrop
                         currentImage={carouselForm.image}
@@ -2778,7 +2842,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                       <Button variant="outline" onClick={() => {
                         setShowCarouselForm(false);
                         setEditingCarousel(null);
-                        setCarouselForm({ title: '', subtitle: '', cta: '', image: '' });
+                        setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '' });
                       }}>
                         Cancel
                       </Button>
