@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Upload, Shield, Clock, Pill, FileText, CheckCircle, X, Sparkles, ShoppingCart, AlertTriangle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Upload, Shield, Clock, Pill, FileText, CheckCircle, X, Sparkles, ShoppingCart, AlertTriangle, Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,6 +11,7 @@ import { ImageUploadWithCrop } from './ImageUploadWithCrop';
 import { toast } from 'sonner';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 import { prescriptionsAPI } from '../utils/api';
+import { Input } from './ui/input';
 
 interface PrescriptionUploadSectionProps {
   onNavigate: (page: string) => void;
@@ -31,13 +32,23 @@ interface AnalyzedMedicine {
 export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSectionProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { addPrescription } = useData();
+  const { addPrescription, medicines } = useData();
   const { addToCart } = useCart();
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [prescriptionImage, setPrescriptionImage] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{ verified: AnalyzedMedicine[], unverified: AnalyzedMedicine[] } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter medicines based on search query
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) return [];
+    const query = searchQuery.toLowerCase();
+    return (medicines || [])
+      .filter((med: any) => med.inStock && med.name.toLowerCase().includes(query))
+      .slice(0, 10); // Limit to 10 results
+  }, [searchQuery, medicines]);
 
   const features = [
     { icon: Shield, title: 'Secure Upload', description: 'Your prescription is safely encrypted' },
@@ -307,6 +318,55 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
                 >
                   {uploading ? 'Uploading...' : 'Submit for Manual Review'}
                 </Button>
+
+                {/* Medicine Search Box */}
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 mt-2">
+                  <Label className="text-sm font-medium text-blue-800 flex items-center gap-1 mb-2">
+                    <Search className="h-4 w-4" />
+                    Search Medicine Directly
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder="Type medicine name (e.g., Napa Extra)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-white"
+                  />
+                  {searchResults.length > 0 && (
+                    <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+                      {searchResults.map((med: any) => (
+                        <div
+                          key={med._id}
+                          className="flex items-center justify-between bg-white p-2 rounded border hover:border-blue-300 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            {med.image && (
+                              <img src={med.image} alt={med.name} className="h-8 w-8 object-contain rounded" />
+                            )}
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{med.name}</p>
+                              <p className="text-xs text-green-600 font-bold">৳{med.price}</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              addToCart({ id: med._id, name: med.name, price: med.price, image: med.image || '' });
+                              toast.success(`${med.name} added to cart!`);
+                              setSearchQuery('');
+                            }}
+                            className="bg-green-600 hover:bg-green-700 h-7 text-xs"
+                          >
+                            <ShoppingCart className="h-3 w-3 mr-1" /> Add
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {searchQuery.length >= 2 && searchResults.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-2">No medicines found matching "{searchQuery}"</p>
+                  )}
+                </div>
               </div>
             </div>
 
