@@ -85,7 +85,8 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
   });
 
   const [medicineForm, setMedicineForm] = useState({
-    name: '', company: '', type: '', price: '', stock: '', image: '', description: ''
+    name: '', company: '', type: '', price: '', stock: '', image: '', description: '',
+    genericName: '', manufacturer: '', form: '', strength: ''
   });
 
   const [hospitalForm, setHospitalForm] = useState({
@@ -480,8 +481,16 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         image: imageUrl,
         category: medicineForm.type || 'Tablet',
         inStock: Number(medicineForm.stock) > 0,
+        description: medicineForm.description,
+        genericName: medicineForm.genericName,
+        manufacturer: medicineForm.manufacturer,
+        form: medicineForm.type || 'Tablet', // Use type as form for now
+        strength: medicineForm.strength,
       });
-      setMedicineForm({ name: '', company: '', type: '', price: '', stock: '', image: '', description: '' });
+      setMedicineForm({
+        name: '', company: '', type: '', price: '', stock: '', image: '', description: '',
+        genericName: '', manufacturer: '', form: '', strength: ''
+      });
       setEditingMedicine(null);
       setShowMedicineForm(false);
       toast.success('Medicine added successfully!');
@@ -632,7 +641,11 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
       price: medicine.price?.toString() || '',
       stock: '',
       image: medicine.image || '',
-      description: '',
+      description: medicine.description || '',
+      genericName: medicine.genericName || '',
+      manufacturer: medicine.manufacturer || '',
+      form: medicine.form || '',
+      strength: medicine.strength || '',
     });
     setShowMedicineForm(true);
   };
@@ -656,8 +669,16 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         image: imageUrl,
         category: medicineForm.type,
         inStock: Number(medicineForm.stock) > 0,
+        description: medicineForm.description,
+        genericName: medicineForm.genericName,
+        manufacturer: medicineForm.manufacturer,
+        form: medicineForm.type, // Sync type and form for now
+        strength: medicineForm.strength,
       });
-      setMedicineForm({ name: '', company: '', type: '', price: '', stock: '', image: '', description: '' });
+      setMedicineForm({
+        name: '', company: '', type: '', price: '', stock: '', image: '', description: '',
+        genericName: '', manufacturer: '', form: '', strength: ''
+      });
       setEditingMedicine(null);
       setShowMedicineForm(false);
       toast.success('Medicine updated successfully!');
@@ -2314,7 +2335,10 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                 </div>
                 <Button onClick={() => {
                   setEditingMedicine(null);
-                  setMedicineForm({ name: '', company: '', type: '', price: '', stock: '', image: '', description: '' });
+                  setMedicineForm({
+                    name: '', company: '', type: '', price: '', stock: '', image: '', description: '',
+                    genericName: '', manufacturer: '', form: '', strength: ''
+                  });
                   setShowMedicineForm(true);
                 }} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30">
                   <Plus className="h-4 w-4 mr-2" />
@@ -2355,7 +2379,10 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                 setShowMedicineForm(open);
                 if (!open) {
                   setEditingMedicine(null);
-                  setMedicineForm({ name: '', company: '', type: '', price: '', stock: '', image: '', description: '' });
+                  setMedicineForm({
+                    name: '', company: '', type: '', price: '', stock: '', image: '', description: '',
+                    genericName: '', manufacturer: '', form: '', strength: ''
+                  });
                 }
               }}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -2416,6 +2443,30 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                           placeholder="100"
                         />
                       </div>
+                      <div>
+                        <Label>Generic Name (Required)</Label>
+                        <Input
+                          value={medicineForm.genericName}
+                          onChange={(e) => setMedicineForm({ ...medicineForm, genericName: e.target.value })}
+                          placeholder="e.g. Paracetamol"
+                        />
+                      </div>
+                      <div>
+                        <Label>Strength</Label>
+                        <Input
+                          value={medicineForm.strength}
+                          onChange={(e) => setMedicineForm({ ...medicineForm, strength: e.target.value })}
+                          placeholder="e.g. 500mg"
+                        />
+                      </div>
+                      <div>
+                        <Label>Manufacturer</Label>
+                        <Input
+                          value={medicineForm.manufacturer}
+                          onChange={(e) => setMedicineForm({ ...medicineForm, manufacturer: e.target.value })}
+                          placeholder="e.g. Acme Laboratories"
+                        />
+                      </div>
                     </div>
                     <div>
                       <Label>Description</Label>
@@ -2438,7 +2489,10 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                       <Button variant="outline" onClick={() => {
                         setShowMedicineForm(false);
                         setEditingMedicine(null);
-                        setMedicineForm({ name: '', company: '', type: '', price: '', stock: '', image: '', description: '' });
+                        setMedicineForm({
+                          name: '', company: '', type: '', price: '', stock: '', image: '', description: '',
+                          genericName: '', manufacturer: '', form: '', strength: ''
+                        });
                       }}>
                         Cancel
                       </Button>
@@ -3244,7 +3298,8 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
       </div >
 
       {/* Prescription Full Image Dialog */}
-      < Dialog open={!!selectedPrescriptionImage} onOpenChange={() => setSelectedPrescriptionImage(null)}>
+      < Dialog open={!!selectedPrescriptionImage
+      } onOpenChange={() => setSelectedPrescriptionImage(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Prescription Full View</DialogTitle>

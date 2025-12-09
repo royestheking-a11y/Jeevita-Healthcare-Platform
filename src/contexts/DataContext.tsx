@@ -33,6 +33,10 @@ export interface Medicine {
   category: string;
   inStock: boolean;
   description?: string;
+  genericName?: string;
+  manufacturer?: string;
+  form?: string;
+  strength?: string;
 }
 
 export interface Hospital {

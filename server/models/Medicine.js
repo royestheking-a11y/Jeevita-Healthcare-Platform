@@ -6,7 +6,12 @@ const medicineSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   image: { type: String, required: true },
   category: { type: String, required: true },
-  inStock: { type: Boolean, default: true }
+  inStock: { type: Boolean, default: true },
+  description: { type: String },
+  genericName: { type: String, required: true },
+  manufacturer: { type: String },
+  form: { type: String },
+  strength: { type: String }
 }, {
   timestamps: true
 });

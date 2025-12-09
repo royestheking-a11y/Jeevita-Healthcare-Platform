@@ -8,6 +8,7 @@ import { useCart } from '../contexts/CartContext';
 import { toast } from 'sonner';
 import { useParams } from 'react-router-dom';
 import { MedicineSeo } from '../seo-pages/MedicineSeo';
+import { MedicineCard } from '../components/MedicineCard';
 
 export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string, data?: any) => void }) {
   const [quantity, setQuantity] = useState(1);
@@ -15,6 +16,16 @@ export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string,
   const { addToCart } = useCart();
   const { medicines, loading } = useData();
   const medicine = medicines.find(m => m.id === medicineId);
+
+  // Find similar medicines based on generic name
+  const currentGenericName = medicine?.genericName;
+  const similarMedicines = currentGenericName
+    ? medicines.filter(m =>
+      m.id !== medicine!.id &&
+      m.genericName &&
+      m.genericName.toLowerCase() === currentGenericName.toLowerCase()
+    )
+    : [];
 
   if (loading) {
     return (
@@ -152,8 +163,7 @@ export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string,
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600 leading-relaxed mb-4">
-                  {medicine.name} by {medicine.brand} is a high-quality pharmaceutical product designed to provide effective treatment.
-                  This medicine is manufactured under strict quality control standards and is approved for safe use.
+                  {medicine.description || `${medicine.name} by ${medicine.brand} is a high-quality pharmaceutical product designed to provide effective treatment. This medicine is manufactured under strict quality control standards and is approved for safe use.`}
                 </p>
                 <div className="space-y-2 text-sm text-gray-600">
                   <div className="flex justify-between py-2 border-b">
@@ -164,13 +174,25 @@ export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string,
                     <span>Brand:</span>
                     <span className="text-gray-900">{medicine.brand}</span>
                   </div>
+                  {medicine.genericName && (
+                    <div className="flex justify-between py-2 border-b">
+                      <span>Generic Name:</span>
+                      <span className="text-gray-900">{medicine.genericName}</span>
+                    </div>
+                  )}
+                  {medicine.strength && (
+                    <div className="flex justify-between py-2 border-b">
+                      <span>Strength:</span>
+                      <span className="text-gray-900">{medicine.strength}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between py-2 border-b">
                     <span>Form:</span>
-                    <span className="text-gray-900">Tablet</span>
+                    <span className="text-gray-900">{medicine.form || medicine.category}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b">
                     <span>Manufacturer:</span>
-                    <span className="text-gray-900">{medicine.brand} Pharmaceuticals</span>
+                    <span className="text-gray-900">{medicine.manufacturer || `${medicine.brand} Pharmaceuticals`}</span>
                   </div>
                 </div>
               </CardContent>
@@ -204,6 +226,27 @@ export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string,
             </Card>
           </div>
         </div>
+
+        {/* Similar Medicines Section */}
+        {similarMedicines.length > 0 && (
+          <div className="mt-16 border-t pt-12">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Similar Medicines</h2>
+                <p className="text-gray-600">Alternative medicines with the same generic components</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {similarMedicines.map(similar => (
+                <MedicineCard
+                  key={similar.id}
+                  medicine={similar}
+                  onViewDetails={(id) => onNavigate('medicine-details', { medicineId: id })}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
