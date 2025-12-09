@@ -35,7 +35,7 @@ router.post('/analyze', async (req, res) => {
     const buffer = Buffer.from(arrayBuffer);
 
     // Call Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const prompt = `Analyze this prescription image. Identify all medicines listed. 
     Return a JSON array where each object has:
     - 'name': The name of the medicine (string)
