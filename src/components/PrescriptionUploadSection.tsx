@@ -59,18 +59,9 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
         imageUrl = await uploadToCloudinary(prescriptionImage, 'prescriptions');
       }
 
-      // 2. Run OCR in the browser using Tesseract.js
-      toast.info('Reading prescription text...');
-      const Tesseract = await import('tesseract.js');
-      const worker = await Tesseract.createWorker('eng');
-      const { data: { text } } = await worker.recognize(prescriptionImage);
-      await worker.terminate();
-
-      console.log('OCR extracted text:', text.substring(0, 200));
-
-      // 3. Send extracted text to server for matching
-      toast.info('Matching medicines...');
-      const result = await prescriptionsAPI.analyze(imageUrl, text);
+      // 2. Call server API which uses OCR.space for text extraction
+      toast.info('Analyzing prescription...');
+      const result = await prescriptionsAPI.analyze(imageUrl);
 
       if (result.success) {
         setAnalysisResult({
@@ -82,13 +73,13 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
         } else if (result.unverifiedItems.length > 0) {
           toast.info(`Found ${result.unverifiedItems.length} items (not in stock). Please submit for manual review.`);
         } else {
-          toast.info('No medicines found. Please submit for manual review.');
+          toast.info(result.message || 'No medicines found. Please submit for manual review.');
         }
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Analysis failed:', error);
-      toast.error('Failed to analyze prescription. Please try manual upload.');
+      toast.error(error.message || 'Failed to analyze prescription. Please try manual upload.');
     } finally {
       setAnalyzing(false);
     }

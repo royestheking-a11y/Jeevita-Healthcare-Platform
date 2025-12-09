@@ -54,34 +54,64 @@ function extractMedicineNames(text) {
   });
 }
 
-// Analyze prescription - accepts OCR text from client-side Tesseract
-// Client does the heavy OCR work, server just matches against database
+// Analyze prescription using OCR.space API (500 free requests/day)
 router.post('/analyze', async (req, res) => {
   try {
-    const { ocrText, imageUrl } = req.body;
+    const { imageUrl } = req.body;
 
-    // If no OCR text provided, return instructions
-    if (!ocrText) {
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Image URL is required' });
+    }
+
+    const OCR_API_KEY = process.env.OCR_SPACE_API_KEY;
+    if (!OCR_API_KEY) {
+      console.error('OCR_SPACE_API_KEY is not set');
+      return res.status(500).json({ error: 'OCR service not configured. Please set OCR_SPACE_API_KEY.' });
+    }
+
+    console.log('Calling OCR.space API for:', imageUrl);
+
+    // Call OCR.space API
+    const formData = new FormData();
+    formData.append('url', imageUrl);
+    formData.append('apikey', OCR_API_KEY);
+    formData.append('language', 'eng');
+    formData.append('isOverlayRequired', 'false');
+    formData.append('detectOrientation', 'true');
+    formData.append('scale', 'true');
+    formData.append('OCREngine', '2'); // Engine 2 is better for handwriting
+
+    const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: formData
+    });
+
+    const ocrResult = await ocrResponse.json();
+
+    if (ocrResult.IsErroredOnProcessing) {
+      console.error('OCR.space error:', ocrResult.ErrorMessage);
+      return res.status(500).json({ error: 'OCR failed: ' + (ocrResult.ErrorMessage || 'Unknown error') });
+    }
+
+    const ocrText = ocrResult.ParsedResults?.[0]?.ParsedText || '';
+    console.log('OCR extracted text:', ocrText.substring(0, 300));
+
+    if (!ocrText.trim()) {
       return res.json({
         success: true,
         verifiedMedicines: [],
         unverifiedItems: [],
-        message: 'Please wait while we analyze your prescription...',
-        needsClientOCR: true
+        message: 'Could not read text from image. Please try a clearer image or submit for manual review.'
       });
     }
 
-    console.log('Received OCR text from client, length:', ocrText.length);
-
     // Extract potential medicine names from OCR text
     const extractedMedicines = extractMedicineNames(ocrText);
-
     console.log('Potential medicines found:', extractedMedicines.map(m => m.name));
 
     // Verify against database
     const verificationResults = await Promise.all(extractedMedicines.map(async (item) => {
       const escapedName = escapeRegExp(item.name);
-      // Search for medicine names that contain the extracted name (case-insensitive)
       const match = await Medicine.findOne({
         name: { $regex: escapedName, $options: 'i' },
         inStock: true
@@ -105,7 +135,8 @@ router.post('/analyze', async (req, res) => {
     res.json({
       success: true,
       verifiedMedicines,
-      unverifiedItems
+      unverifiedItems,
+      rawText: ocrText
     });
 
   } catch (error) {
