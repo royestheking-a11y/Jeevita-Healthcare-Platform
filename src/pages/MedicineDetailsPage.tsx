@@ -81,7 +81,7 @@ export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string,
           Back to Medicines
         </Button>
 
-        <div className="space-y-8">
+        <div className="space-y-12">
           {/* Card 1: Product Main View (Image + Details + Action) */}
           <Card className="overflow-hidden border-2 border-gray-100 shadow-xl shadow-amber-500/5">
             <CardContent className="p-0">
@@ -108,13 +108,13 @@ export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string,
                   />
                   {similarMedicines.length > 0 && (
                     <div className="mt-8 w-full max-w-sm bg-white/60 backdrop-blur rounded-xl p-4 border border-indigo-50">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Similar Options</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Similar Medicine</p>
                       <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
                         {similarMedicines.slice(0, 3).map(similar => (
                           <div
                             key={similar.id}
                             onClick={() => onNavigate('medicine-details', { medicineId: similar.id })}
-                            className="flex-shrink-0 w-16 h-16 bg-white rounded-lg border border-gray-200 p-1 cursor-pointer hover:border-amber-400 transition-colors"
+                            className="flex-shrink-0 w-24 h-24 bg-white rounded-lg border border-gray-200 p-2 cursor-pointer hover:border-amber-400 transition-colors"
                             title={similar.name}
                           >
                             <img src={similar.image} alt={similar.name} className="w-full h-full object-contain" />
@@ -196,7 +196,7 @@ export function MedicineDetailsPage({ onNavigate }: { onNavigate: (page: string,
           </Card>
 
           {/* Card 2: Product Description & Info */}
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-10">
             <div className="md:col-span-2">
               <Card className="h-full border-2 border-gray-100">
                 <CardHeader>
