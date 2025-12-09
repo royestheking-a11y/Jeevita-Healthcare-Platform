@@ -8,7 +8,19 @@ import { Medicine } from '../models/Medicine.js';
 const router = express.Router();
 
 // Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize Gemini with Key Rotation
+const getGeminiClient = () => {
+  const keys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '').split(',').map(k => k.trim()).filter(k => k);
+
+  if (keys.length === 0) {
+    throw new Error('No GEMINI_API_KEYS found');
+  }
+
+  // Randomly select a key to distribute load
+  const randomKey = keys[Math.floor(Math.random() * keys.length)];
+  // console.log(`Using Gemini Key: ...${randomKey.slice(-4)}`); 
+  return new GoogleGenerativeAI(randomKey);
+};
 
 // Helper to escape regex special characters
 function escapeRegExp(string) {
@@ -24,8 +36,8 @@ router.post('/analyze', async (req, res) => {
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      console.error('GEMINI_API_KEY is not set');
+    if (!process.env.GEMINI_API_KEYS && !process.env.GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEYS is not set');
       return res.status(500).json({ error: 'AI service configuration missing' });
     }
 
@@ -34,7 +46,8 @@ router.post('/analyze', async (req, res) => {
     const arrayBuffer = await imageResponse.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Call Gemini
+    // Call Gemini with rotated key
+    const genAI = getGeminiClient();
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const prompt = `Analyze this prescription image. Identify all medicines listed. 
     Return a JSON array where each object has:
@@ -100,7 +113,15 @@ router.post('/analyze', async (req, res) => {
 
   } catch (error) {
     console.error('Analysis error:', error);
-    res.status(500).json({ error: 'Failed to analyze prescription' });
+    const status = error.status || 500;
+    const message = error.message || 'Failed to analyze prescription';
+
+    // Check for Gemini Rate Limit
+    if (status === 429 || message.includes('429')) {
+      return res.status(429).json({ error: 'AI Service is busy (Rate Limit). Please try again in 1 minute.' });
+    }
+
+    res.status(status).json({ error: message });
   }
 });
 
