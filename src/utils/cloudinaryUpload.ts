@@ -1,4 +1,4 @@
-const CLOUDINARY_CLOUD_NAME = 'deal7ji7s';
+const CLOUDINARY_CLOUD_NAME = 'dchrmef0d';
 const CLOUDINARY_UPLOAD_PRESET = 'jeevita';
 
 interface CloudinaryResponse {
