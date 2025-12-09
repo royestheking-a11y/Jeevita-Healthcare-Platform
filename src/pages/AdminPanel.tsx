@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { useData } from '../contexts/DataContext';
 import { Separator } from '../components/ui/separator';
 import { usersAPI, messagesAPI, refundsAPI, settingsAPI, cartsAPI } from '../utils/api';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
@@ -423,63 +424,96 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
     toast.success('Activity deleted');
   };
 
-  const handleAddDoctor = () => {
+  const handleAddDoctor = async () => {
     if (!doctorForm.name || !doctorForm.specialty) {
       toast.error('Please fill in all required fields (Name, Specialty)');
       return;
     }
-    addDoctor({
-      name: doctorForm.name,
-      specialty: doctorForm.specialty,
-      degrees: '',
-      experience: Number(doctorForm.experience) || 0,
-      rating: Number(doctorForm.rating) || 4.5,
-      image: doctorForm.image || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400',
-      location: '',
-      fee: Number(doctorForm.fee) || 0,
-      availability: doctorForm.availability ? doctorForm.availability.split(',').map(s => s.trim()) : [],
-      timeSlots: ['10:00 AM', '2:00 PM', '4:00 PM'],
-    });
-    setDoctorForm({ name: '', specialty: '', experience: '', fee: '', rating: '', patients: '', availability: '', image: '' });
-    setEditingDoctor(null);
-    setShowDoctorForm(false);
-    toast.success('Doctor added successfully!');
+    try {
+      let imageUrl = doctorForm.image || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400';
+      // Upload to Cloudinary if it's a base64 image
+      if (doctorForm.image && doctorForm.image.startsWith('data:')) {
+        toast.info('Uploading image...');
+        imageUrl = await uploadToCloudinary(doctorForm.image, 'doctors');
+      }
+      addDoctor({
+        name: doctorForm.name,
+        specialty: doctorForm.specialty,
+        degrees: '',
+        experience: Number(doctorForm.experience) || 0,
+        rating: Number(doctorForm.rating) || 4.5,
+        image: imageUrl,
+        location: '',
+        fee: Number(doctorForm.fee) || 0,
+        availability: doctorForm.availability ? doctorForm.availability.split(',').map(s => s.trim()) : [],
+        timeSlots: ['10:00 AM', '2:00 PM', '4:00 PM'],
+      });
+      setDoctorForm({ name: '', specialty: '', experience: '', fee: '', rating: '', patients: '', availability: '', image: '' });
+      setEditingDoctor(null);
+      setShowDoctorForm(false);
+      toast.success('Doctor added successfully!');
+    } catch (error) {
+      console.error('Error adding doctor:', error);
+      toast.error('Failed to upload image. Please try again.');
+    }
   };
 
-  const handleAddMedicine = () => {
+  const handleAddMedicine = async () => {
     if (!medicineForm.name || !medicineForm.company) {
       toast.error('Please fill in all required fields (Name, Company)');
       return;
     }
-    addMedicine({
-      name: medicineForm.name,
-      brand: medicineForm.company,
-      price: Number(medicineForm.price) || 0,
-      image: medicineForm.image || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
-      category: medicineForm.type || 'Tablet',
-      inStock: Number(medicineForm.stock) > 0,
-    });
-    setMedicineForm({ name: '', company: '', type: '', price: '', stock: '', image: '', description: '' });
-    setEditingMedicine(null);
-    setShowMedicineForm(false);
-    toast.success('Medicine added successfully!');
+    try {
+      let imageUrl = medicineForm.image || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400';
+      // Upload to Cloudinary if it's a base64 image
+      if (medicineForm.image && medicineForm.image.startsWith('data:')) {
+        toast.info('Uploading image...');
+        imageUrl = await uploadToCloudinary(medicineForm.image, 'medicines');
+      }
+      addMedicine({
+        name: medicineForm.name,
+        brand: medicineForm.company,
+        price: Number(medicineForm.price) || 0,
+        image: imageUrl,
+        category: medicineForm.type || 'Tablet',
+        inStock: Number(medicineForm.stock) > 0,
+      });
+      setMedicineForm({ name: '', company: '', type: '', price: '', stock: '', image: '', description: '' });
+      setEditingMedicine(null);
+      setShowMedicineForm(false);
+      toast.success('Medicine added successfully!');
+    } catch (error) {
+      console.error('Error adding medicine:', error);
+      toast.error('Failed to upload image. Please try again.');
+    }
   };
 
-  const handleAddCarousel = () => {
+  const handleAddCarousel = async () => {
     if (!carouselForm.title || !carouselForm.image) {
       toast.error('Please fill in title and image');
       return;
     }
-    addCarouselSlide({
-      image: carouselForm.image,
-      title: carouselForm.title,
-      subtitle: carouselForm.subtitle,
-      cta: carouselForm.cta,
-    });
-    setCarouselForm({ title: '', subtitle: '', cta: '', image: '' });
-    setEditingCarousel(null);
-    setShowCarouselForm(false);
-    toast.success('Carousel slide added successfully!');
+    try {
+      let imageUrl = carouselForm.image;
+      // Upload to Cloudinary if it's a base64 image
+      if (carouselForm.image.startsWith('data:')) {
+        toast.info('Uploading image...');
+        imageUrl = await uploadToCloudinary(carouselForm.image, 'carousel');
+      }
+      addCarouselSlide({
+        image: imageUrl,
+        title: carouselForm.title,
+        subtitle: carouselForm.subtitle,
+        cta: carouselForm.cta,
+      });
+      setCarouselForm({ title: '', subtitle: '', cta: '', image: '' });
+      setEditingCarousel(null);
+      setShowCarouselForm(false);
+      toast.success('Carousel slide added successfully!');
+    } catch (error) {
+      console.error('Error adding carousel:', error);
+      toast.error('Failed to upload image. Please try again.');
+    }
   };
 
   const handleEditCarousel = (slide: any) => {
@@ -493,21 +527,32 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
     setShowCarouselForm(true);
   };
 
-  const handleUpdateCarousel = () => {
+  const handleUpdateCarousel = async () => {
     if (!editingCarousel || !carouselForm.title || !carouselForm.image) {
       toast.error('Please fill in title and image');
       return;
     }
-    updateCarouselSlide(editingCarousel.id, {
-      image: carouselForm.image,
-      title: carouselForm.title,
-      subtitle: carouselForm.subtitle,
-      cta: carouselForm.cta,
-    });
-    setCarouselForm({ title: '', subtitle: '', cta: '', image: '' });
-    setEditingCarousel(null);
-    setShowCarouselForm(false);
-    toast.success('Carousel slide updated successfully!');
+    try {
+      let imageUrl = carouselForm.image;
+      // Upload to Cloudinary if it's a new base64 image
+      if (carouselForm.image.startsWith('data:')) {
+        toast.info('Uploading image...');
+        imageUrl = await uploadToCloudinary(carouselForm.image, 'carousel');
+      }
+      updateCarouselSlide(editingCarousel.id, {
+        image: imageUrl,
+        title: carouselForm.title,
+        subtitle: carouselForm.subtitle,
+        cta: carouselForm.cta,
+      });
+      setCarouselForm({ title: '', subtitle: '', cta: '', image: '' });
+      setEditingCarousel(null);
+      setShowCarouselForm(false);
+      toast.success('Carousel slide updated successfully!');
+    } catch (error) {
+      console.error('Error updating carousel:', error);
+      toast.error('Failed to upload image. Please try again.');
+    }
   };
 
   const handleDeleteCarousel = (id: string) => {
@@ -530,24 +575,35 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
     setShowDoctorForm(true);
   };
 
-  const handleUpdateDoctor = () => {
+  const handleUpdateDoctor = async () => {
     if (!editingDoctor || !doctorForm.name || !doctorForm.specialty) {
       toast.error('Please fill in all required fields');
       return;
     }
-    updateDoctor(editingDoctor.id, {
-      name: doctorForm.name,
-      specialty: doctorForm.specialty,
-      experience: Number(doctorForm.experience),
-      rating: Number(doctorForm.rating),
-      image: doctorForm.image,
-      fee: Number(doctorForm.fee),
-      availability: doctorForm.availability ? doctorForm.availability.split(',').map(s => s.trim()) : [],
-    });
-    setDoctorForm({ name: '', specialty: '', experience: '', fee: '', rating: '', patients: '', availability: '', image: '' });
-    setEditingDoctor(null);
-    setShowDoctorForm(false);
-    toast.success('Doctor updated successfully!');
+    try {
+      let imageUrl = doctorForm.image;
+      // Upload to Cloudinary if it's a new base64 image
+      if (doctorForm.image && doctorForm.image.startsWith('data:')) {
+        toast.info('Uploading image...');
+        imageUrl = await uploadToCloudinary(doctorForm.image, 'doctors');
+      }
+      updateDoctor(editingDoctor.id, {
+        name: doctorForm.name,
+        specialty: doctorForm.specialty,
+        experience: Number(doctorForm.experience),
+        rating: Number(doctorForm.rating),
+        image: imageUrl,
+        fee: Number(doctorForm.fee),
+        availability: doctorForm.availability ? doctorForm.availability.split(',').map(s => s.trim()) : [],
+      });
+      setDoctorForm({ name: '', specialty: '', experience: '', fee: '', rating: '', patients: '', availability: '', image: '' });
+      setEditingDoctor(null);
+      setShowDoctorForm(false);
+      toast.success('Doctor updated successfully!');
+    } catch (error) {
+      console.error('Error updating doctor:', error);
+      toast.error('Failed to upload image. Please try again.');
+    }
   };
 
   const handleDeleteDoctor = (id: string) => {
@@ -569,23 +625,34 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
     setShowMedicineForm(true);
   };
 
-  const handleUpdateMedicine = () => {
+  const handleUpdateMedicine = async () => {
     if (!editingMedicine || !medicineForm.name || !medicineForm.company) {
       toast.error('Please fill in all required fields');
       return;
     }
-    updateMedicine(editingMedicine.id, {
-      name: medicineForm.name,
-      brand: medicineForm.company,
-      price: Number(medicineForm.price),
-      image: medicineForm.image,
-      category: medicineForm.type,
-      inStock: Number(medicineForm.stock) > 0,
-    });
-    setMedicineForm({ name: '', company: '', type: '', price: '', stock: '', image: '', description: '' });
-    setEditingMedicine(null);
-    setShowMedicineForm(false);
-    toast.success('Medicine updated successfully!');
+    try {
+      let imageUrl = medicineForm.image;
+      // Upload to Cloudinary if it's a new base64 image
+      if (medicineForm.image && medicineForm.image.startsWith('data:')) {
+        toast.info('Uploading image...');
+        imageUrl = await uploadToCloudinary(medicineForm.image, 'medicines');
+      }
+      updateMedicine(editingMedicine.id, {
+        name: medicineForm.name,
+        brand: medicineForm.company,
+        price: Number(medicineForm.price),
+        image: imageUrl,
+        category: medicineForm.type,
+        inStock: Number(medicineForm.stock) > 0,
+      });
+      setMedicineForm({ name: '', company: '', type: '', price: '', stock: '', image: '', description: '' });
+      setEditingMedicine(null);
+      setShowMedicineForm(false);
+      toast.success('Medicine updated successfully!');
+    } catch (error) {
+      console.error('Error updating medicine:', error);
+      toast.error('Failed to upload image. Please try again.');
+    }
   };
 
   const handleDeleteMedicine = (id: string) => {
@@ -593,44 +660,55 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
     toast.success('Medicine removed');
   };
 
-  const handleAddHospital = () => {
+  const handleAddHospital = async () => {
     if (!hospitalForm.name || !hospitalForm.address || !hospitalForm.specialty) {
       toast.error('Please fill in all required fields (Name, Address, Specialty)');
       return;
     }
-    addHospital({
-      name: hospitalForm.name,
-      address: hospitalForm.address,
-      specialty: hospitalForm.specialty,
-      image: hospitalForm.image || 'https://images.unsplash.com/photo-1719934398679-d764c1410770?w=600',
-      phone: hospitalForm.phone || '+880 1700-000000',
-      hours: hospitalForm.hours || '24/7 Available',
-      description: hospitalForm.description || '',
-      departments: hospitalForm.departments ? hospitalForm.departments.split(',').map(d => d.trim()).filter(d => d) : [],
-      facilities: hospitalForm.facilities ? hospitalForm.facilities.split(',').map(f => f.trim()).filter(f => f) : [],
-      beds: hospitalForm.beds || '200+ Beds',
-      staff: hospitalForm.staff || '200+ Medical Staff',
-      email: hospitalForm.email || `info@${hospitalForm.name.toLowerCase().replace(/\s+/g, '')}.com`,
-      rating: parseFloat(hospitalForm.rating) || 4.8,
-    });
-    setHospitalForm({
-      name: '',
-      address: '',
-      specialty: '',
-      image: '',
-      phone: '',
-      hours: '',
-      description: '',
-      departments: '',
-      facilities: '',
-      beds: '',
-      staff: '',
-      email: '',
-      rating: '4.8'
-    });
-    setEditingHospital(null);
-    setShowHospitalForm(false);
-    toast.success('Hospital added successfully!');
+    try {
+      let imageUrl = hospitalForm.image || 'https://images.unsplash.com/photo-1719934398679-d764c1410770?w=600';
+      // Upload to Cloudinary if it's a base64 image
+      if (hospitalForm.image && hospitalForm.image.startsWith('data:')) {
+        toast.info('Uploading image...');
+        imageUrl = await uploadToCloudinary(hospitalForm.image, 'hospitals');
+      }
+      addHospital({
+        name: hospitalForm.name,
+        address: hospitalForm.address,
+        specialty: hospitalForm.specialty,
+        image: imageUrl,
+        phone: hospitalForm.phone || '+880 1700-000000',
+        hours: hospitalForm.hours || '24/7 Available',
+        description: hospitalForm.description || '',
+        departments: hospitalForm.departments ? hospitalForm.departments.split(',').map(d => d.trim()).filter(d => d) : [],
+        facilities: hospitalForm.facilities ? hospitalForm.facilities.split(',').map(f => f.trim()).filter(f => f) : [],
+        beds: hospitalForm.beds || '200+ Beds',
+        staff: hospitalForm.staff || '200+ Medical Staff',
+        email: hospitalForm.email || `info@${hospitalForm.name.toLowerCase().replace(/\s+/g, '')}.com`,
+        rating: parseFloat(hospitalForm.rating) || 4.8,
+      });
+      setHospitalForm({
+        name: '',
+        address: '',
+        specialty: '',
+        image: '',
+        phone: '',
+        hours: '',
+        description: '',
+        departments: '',
+        facilities: '',
+        beds: '',
+        staff: '',
+        email: '',
+        rating: '4.8'
+      });
+      setEditingHospital(null);
+      setShowHospitalForm(false);
+      toast.success('Hospital added successfully!');
+    } catch (error) {
+      console.error('Error adding hospital:', error);
+      toast.error('Failed to upload image. Please try again.');
+    }
   };
 
   const handleEditHospital = (hospital: any) => {
@@ -653,44 +731,55 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
     setShowHospitalForm(true);
   };
 
-  const handleUpdateHospital = () => {
+  const handleUpdateHospital = async () => {
     if (!editingHospital || !hospitalForm.name || !hospitalForm.address || !hospitalForm.specialty) {
       toast.error('Please fill in all required fields (Name, Address, Specialty)');
       return;
     }
-    updateHospital(editingHospital.id, {
-      name: hospitalForm.name,
-      address: hospitalForm.address,
-      specialty: hospitalForm.specialty,
-      image: hospitalForm.image,
-      phone: hospitalForm.phone || '+880 1700-000000',
-      hours: hospitalForm.hours || '24/7 Available',
-      description: hospitalForm.description || '',
-      departments: hospitalForm.departments ? hospitalForm.departments.split(',').map(d => d.trim()).filter(d => d) : [],
-      facilities: hospitalForm.facilities ? hospitalForm.facilities.split(',').map(f => f.trim()).filter(f => f) : [],
-      beds: hospitalForm.beds || '200+ Beds',
-      staff: hospitalForm.staff || '200+ Medical Staff',
-      email: hospitalForm.email || `info@${hospitalForm.name.toLowerCase().replace(/\s+/g, '')}.com`,
-      rating: parseFloat(hospitalForm.rating) || 4.8,
-    });
-    setHospitalForm({
-      name: '',
-      address: '',
-      specialty: '',
-      image: '',
-      phone: '',
-      hours: '',
-      description: '',
-      departments: '',
-      facilities: '',
-      beds: '',
-      staff: '',
-      email: '',
-      rating: '4.8'
-    });
-    setEditingHospital(null);
-    setShowHospitalForm(false);
-    toast.success('Hospital updated successfully!');
+    try {
+      let imageUrl = hospitalForm.image;
+      // Upload to Cloudinary if it's a new base64 image
+      if (hospitalForm.image && hospitalForm.image.startsWith('data:')) {
+        toast.info('Uploading image...');
+        imageUrl = await uploadToCloudinary(hospitalForm.image, 'hospitals');
+      }
+      updateHospital(editingHospital.id, {
+        name: hospitalForm.name,
+        address: hospitalForm.address,
+        specialty: hospitalForm.specialty,
+        image: imageUrl,
+        phone: hospitalForm.phone || '+880 1700-000000',
+        hours: hospitalForm.hours || '24/7 Available',
+        description: hospitalForm.description || '',
+        departments: hospitalForm.departments ? hospitalForm.departments.split(',').map(d => d.trim()).filter(d => d) : [],
+        facilities: hospitalForm.facilities ? hospitalForm.facilities.split(',').map(f => f.trim()).filter(f => f) : [],
+        beds: hospitalForm.beds || '200+ Beds',
+        staff: hospitalForm.staff || '200+ Medical Staff',
+        email: hospitalForm.email || `info@${hospitalForm.name.toLowerCase().replace(/\s+/g, '')}.com`,
+        rating: parseFloat(hospitalForm.rating) || 4.8,
+      });
+      setHospitalForm({
+        name: '',
+        address: '',
+        specialty: '',
+        image: '',
+        phone: '',
+        hours: '',
+        description: '',
+        departments: '',
+        facilities: '',
+        beds: '',
+        staff: '',
+        email: '',
+        rating: '4.8'
+      });
+      setEditingHospital(null);
+      setShowHospitalForm(false);
+      toast.success('Hospital updated successfully!');
+    } catch (error) {
+      console.error('Error updating hospital:', error);
+      toast.error('Failed to upload image. Please try again.');
+    }
   };
 
   const handleDeleteHospital = (id: string) => {

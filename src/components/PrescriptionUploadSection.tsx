@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from './ui/label';
 import { ImageUploadWithCrop } from './ImageUploadWithCrop';
 import { toast } from 'sonner';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 interface PrescriptionUploadSectionProps {
   onNavigate: (page: string) => void;
@@ -42,12 +43,19 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
     setUploading(true);
 
     try {
+      // Upload to Cloudinary if it's a base64 image
+      let imageUrl = prescriptionImage;
+      if (prescriptionImage.startsWith('data:')) {
+        toast.info('Uploading prescription...');
+        imageUrl = await uploadToCloudinary(prescriptionImage, 'prescriptions');
+      }
+
       // Add prescription to DataContext (which calls the API)
       await addPrescription({
         userId: user.id || user._id || '', // Handle potential missing id
         userName: user.name,
         userEmail: user.email,
-        image: prescriptionImage,
+        image: imageUrl,
         status: 'pending',
         uploadDate: new Date().toLocaleString(),
         notes: '',

@@ -1,5 +1,6 @@
 import express from 'express';
 import { CarouselSlide } from '../models/CarouselSlide.js';
+import { deleteImage } from '../utils/cloudinary.js';
 
 const router = express.Router();
 
@@ -38,8 +39,18 @@ router.post('/', async (req, res) => {
 // Update slide
 router.put('/:id', async (req, res) => {
   try {
+    // Get existing slide to check for image change
+    const existingSlide = await CarouselSlide.findById(req.params.id);
+    if (!existingSlide) return res.status(404).json({ error: 'Slide not found' });
+
+    // If image is being replaced, delete old one from Cloudinary
+    if (req.body.image && existingSlide.image &&
+      req.body.image !== existingSlide.image &&
+      existingSlide.image.includes('cloudinary.com')) {
+      await deleteImage(existingSlide.image);
+    }
+
     const slide = await CarouselSlide.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!slide) return res.status(404).json({ error: 'Slide not found' });
     res.json(slide);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -51,6 +62,12 @@ router.delete('/:id', async (req, res) => {
   try {
     const slide = await CarouselSlide.findByIdAndDelete(req.params.id);
     if (!slide) return res.status(404).json({ error: 'Slide not found' });
+
+    // Delete image from Cloudinary
+    if (slide.image && slide.image.includes('cloudinary.com')) {
+      await deleteImage(slide.image);
+    }
+
     res.json({ message: 'Slide deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -58,4 +75,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 export default router;
-

@@ -1,6 +1,7 @@
 import express from 'express';
 import { User } from '../models/User.js';
 import { OAuth2Client } from 'google-auth-library';
+import { deleteImage } from '../utils/cloudinary.js';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '1060488985292-9109rvmg1j30v7qpq9793voc40ffrl49.apps.googleusercontent.com';
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -55,8 +56,18 @@ router.post('/', async (req, res) => {
 // Update user
 router.put('/:id', async (req, res) => {
   try {
+    // Get existing user to check for image change
+    const existingUser = await User.findById(req.params.id);
+    if (!existingUser) return res.status(404).json({ error: 'User not found' });
+
+    // If profile image is being replaced, delete old one from Cloudinary
+    if (req.body.profileImage && existingUser.profileImage &&
+      req.body.profileImage !== existingUser.profileImage &&
+      existingUser.profileImage.includes('cloudinary.com')) {
+      await deleteImage(existingUser.profileImage);
+    }
+
     const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');
-    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -68,6 +79,12 @@ router.delete('/:id', async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Delete profile image from Cloudinary
+    if (user.profileImage && user.profileImage.includes('cloudinary.com')) {
+      await deleteImage(user.profileImage);
+    }
+
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { NotificationService } from '../utils/notifications';
 import { ImageUploadWithCrop } from '../components/ImageUploadWithCrop';
 import { refundsAPI } from '../utils/api';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 interface DashboardPageProps {
   onNavigate: (page: string) => void;
@@ -297,12 +298,23 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     );
   }
 
-  const handleProfileImageUpload = (imageData: string) => {
-    setProfileImage(imageData);
-    if (user) {
-      updateUser({ profileImage: imageData });
+  const handleProfileImageUpload = async (imageData: string) => {
+    try {
+      let imageUrl = imageData;
+      // Upload to Cloudinary if it's a base64 image
+      if (imageData.startsWith('data:')) {
+        toast.info('Uploading photo...');
+        imageUrl = await uploadToCloudinary(imageData, 'users');
+      }
+      setProfileImage(imageUrl);
+      if (user) {
+        updateUser({ profileImage: imageUrl });
+      }
+      toast.success('Profile photo updated!');
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      toast.error('Failed to upload photo. Please try again.');
     }
-    toast.success('Profile photo updated!');
   };
 
 
@@ -1222,8 +1234,8 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                     key={method}
                     onClick={() => setRefundMethod(method)}
                     className={`flex-1 p-3 rounded-lg border cursor-pointer text-center capitalize transition-all ${refundMethod === method
-                        ? 'border-amber-500 bg-amber-50 text-amber-700 font-medium ring-1 ring-amber-500'
-                        : 'border-gray-200 hover:border-amber-300 hover:bg-gray-50'
+                      ? 'border-amber-500 bg-amber-50 text-amber-700 font-medium ring-1 ring-amber-500'
+                      : 'border-gray-200 hover:border-amber-300 hover:bg-gray-50'
                       }`}
                   >
                     {method}

@@ -1,5 +1,6 @@
 import express from 'express';
 import { Medicine } from '../models/Medicine.js';
+import { deleteImage } from '../utils/cloudinary.js';
 
 const router = express.Router();
 
@@ -38,8 +39,18 @@ router.post('/', async (req, res) => {
 // Update medicine
 router.put('/:id', async (req, res) => {
   try {
+    // Get existing medicine to check for image change
+    const existingMedicine = await Medicine.findById(req.params.id);
+    if (!existingMedicine) return res.status(404).json({ error: 'Medicine not found' });
+
+    // If image is being replaced, delete old one from Cloudinary
+    if (req.body.image && existingMedicine.image &&
+      req.body.image !== existingMedicine.image &&
+      existingMedicine.image.includes('cloudinary.com')) {
+      await deleteImage(existingMedicine.image);
+    }
+
     const medicine = await Medicine.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!medicine) return res.status(404).json({ error: 'Medicine not found' });
     res.json(medicine);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -51,6 +62,12 @@ router.delete('/:id', async (req, res) => {
   try {
     const medicine = await Medicine.findByIdAndDelete(req.params.id);
     if (!medicine) return res.status(404).json({ error: 'Medicine not found' });
+
+    // Delete image from Cloudinary
+    if (medicine.image && medicine.image.includes('cloudinary.com')) {
+      await deleteImage(medicine.image);
+    }
+
     res.json({ message: 'Medicine deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -58,4 +75,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 export default router;
-

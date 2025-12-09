@@ -1,5 +1,6 @@
 import express from 'express';
 import { Prescription } from '../models/Prescription.js';
+import { deleteImage } from '../utils/cloudinary.js';
 
 const router = express.Router();
 
@@ -61,6 +62,12 @@ router.delete('/:id', async (req, res) => {
   try {
     const prescription = await Prescription.findByIdAndDelete(req.params.id);
     if (!prescription) return res.status(404).json({ error: 'Prescription not found' });
+
+    // Delete image from Cloudinary
+    if (prescription.image && prescription.image.includes('cloudinary.com')) {
+      await deleteImage(prescription.image);
+    }
+
     res.json({ message: 'Prescription deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -68,4 +75,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 export default router;
-
