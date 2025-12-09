@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { Review } from '../contexts/DataContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -12,17 +13,19 @@ import {
   CheckCircle, XCircle, TrendingUp, Pill, ShoppingBag, Image as ImageIcon,
   Plus, Edit, Trash2, Send, LayoutDashboard, Menu, X as CloseIcon, Shield,
   Activity, FileText, Settings, ChevronRight,
-  ArrowUpRight, Eye, RotateCcw, Clock, Building2, Heart
+  ArrowUpRight, Eye, RotateCcw, Clock, Building2, Heart, Star
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useData } from '../contexts/DataContext';
 import { Separator } from '../components/ui/separator';
-import { usersAPI, messagesAPI, refundsAPI, settingsAPI, cartsAPI } from '../utils/api';
+import { usersAPI, messagesAPI, refundsAPI, settingsAPI, cartsAPI, reviewsAPI } from '../utils/api';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { NotificationService } from '../utils/notifications';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+
 
 interface AdminPanelProps {
   onNavigate: (page: string) => void;
@@ -77,6 +80,8 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
   const [selectedUserForCart, setSelectedUserForCart] = useState<any>(null);
   const [userCartItems, setUserCartItems] = useState<any[]>([]);
   const [revenueFilter, setRevenueFilter] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   // Form states
   const [doctorForm, setDoctorForm] = useState({
@@ -127,13 +132,14 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [messagesData, usersData, refundsData, dhakaSetting, outsideSetting, socialLinksSetting] = await Promise.all([
+        const [messagesData, usersData, refundsData, dhakaSetting, outsideSetting, socialLinksSetting, reviewsData] = await Promise.all([
           messagesAPI.getAll().catch(() => []),
           usersAPI.getAll().catch(() => []),
           refundsAPI.getAll().catch(() => []),
           settingsAPI.get('deliveryChargeDhaka').catch(() => ({ value: '70' })),
           settingsAPI.get('deliveryChargeOutside').catch(() => ({ value: '120' })),
           settingsAPI.get('socialMediaLinks').catch(() => ({ value: { facebook: 'https://facebook.com', instagram: 'https://instagram.com', linkedin: 'https://linkedin.com' } })),
+          reviewsAPI.getAllAdmin().catch(() => [])
         ]);
 
         // Normalize IDs
@@ -143,6 +149,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         setDeliveryChargeDhaka(dhakaSetting.value || '70');
         setDeliveryChargeOutside(outsideSetting.value || '120');
         setSocialLinks(socialLinksSetting.value || { facebook: 'https://facebook.com', instagram: 'https://instagram.com', linkedin: 'https://linkedin.com' });
+        setReviews(reviewsData);
       } catch (error) {
         console.error('Error loading admin data:', error);
       }
@@ -154,15 +161,17 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const [messagesData, usersData, refundsData] = await Promise.all([
+        const [messagesData, usersData, refundsData, reviewsData] = await Promise.all([
           messagesAPI.getAll().catch(() => []),
           usersAPI.getAll().catch(() => []),
           refundsAPI.getAll().catch(() => []),
+          reviewsAPI.getAllAdmin().catch(() => [])
         ]);
 
         setLiveMessages(messagesData.map((m: any) => ({ ...m, id: m._id || m.id })));
         setPendingUsers(usersData.map((u: any) => ({ ...u, id: u._id || u.id, date: u.date || new Date(u.createdAt || Date.now()).toISOString().split('T')[0] })));
         setRefundRequests(refundsData.map((r: any) => ({ ...r, id: r._id || r.id })));
+        setReviews(reviewsData);
       } catch (error) {
         console.error('Error refreshing admin data:', error);
       }
@@ -820,6 +829,26 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
     toast.success('Hospital removed');
   };
 
+  const handleUpdateReviewStatus = async (id: string, status: string) => {
+    try {
+      await reviewsAPI.updateStatus(id, status);
+      setReviews(prev => prev.map(r => r._id === id || r.id === id ? { ...r, status: status as any } : r));
+      toast.success(`Review ${status} `);
+    } catch (error) {
+      toast.error('Failed to update review status');
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    try {
+      await reviewsAPI.delete(id);
+      setReviews(prev => prev.filter(r => r._id !== id && r.id !== id));
+      toast.success('Review deleted');
+    } catch (error) {
+      toast.error('Failed to delete review');
+    }
+  };
+
   // Admin access is controlled by AdminLoginPage, so no need to check here
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -830,6 +859,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
     { id: 'prescriptions', label: 'Prescriptions', icon: FileText },
     { id: 'messages', label: 'Live Messages', icon: MessageSquare },
     { id: 'refunds', label: 'Refund Requests', icon: RotateCcw },
+    { id: 'reviews', label: 'Review Management', icon: Star },
     { id: 'doctors', label: 'Manage Doctors', icon: Stethoscope },
     { id: 'medicines', label: 'Manage Medicines', icon: Pill },
     { id: 'hospitals', label: 'Manage Hospitals', icon: Building2 },
@@ -913,9 +943,9 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                         className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl transition-all duration-200 group ${activeTab === item.id
                           ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/40 scale-[1.02]'
                           : 'text-gray-700 hover:bg-gradient-to-r hover:from-amber-100 hover:to-orange-100 hover:text-amber-800 hover:shadow-md'
-                          }`}
+                          } `}
                       >
-                        <div className={`p-1.5 rounded-lg ${activeTab === item.id ? 'bg-white/20' : 'bg-amber-100 group-hover:bg-amber-200'}`}>
+                        <div className={`p-1.5 rounded-lg ${activeTab === item.id ? 'bg-white/20' : 'bg-amber-100 group-hover:bg-amber-200'} `}>
                           <Icon className="h-4 w-4" />
                         </div>
                         <span className="font-medium text-sm flex-1 text-left">{item.label}</span>
@@ -1133,8 +1163,8 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                             <div>
                               <p className="font-medium text-gray-900">{user.name}</p>
                               <p className="text-sm text-gray-600">{user.email}</p>
-                              <Badge className={`mt-1 ${user.status === 'approved' ? 'bg-green-500' : 'bg-red-500'
-                                }`}>
+                              <Badge className={`mt - 1 ${user.status === 'approved' ? 'bg-green-500' : 'bg-red-500'
+                                } `}>
                                 {user.status === 'approved' ? 'Active' : 'Disabled'}
                               </Badge>
                             </div>
@@ -1294,10 +1324,10 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                     {userActivities.map((activity) => (
                       <div key={activity.id} className="flex items-center justify-between p-4 border border-amber-200 rounded-xl hover:border-amber-300 hover:shadow-sm transition-all">
                         <div className="flex items-start gap-3 flex-1">
-                          <div className={`p-2 rounded-lg ${activity.type === 'appointment' ? 'bg-blue-100' :
+                          <div className={`p - 2 rounded - lg ${activity.type === 'appointment' ? 'bg-blue-100' :
                             activity.type === 'order' ? 'bg-green-100' :
                               'bg-red-100'
-                            }`}>
+                            } `}>
                             {activity.type === 'appointment' && <Calendar className="h-4 w-4 text-blue-600" />}
                             {activity.type === 'order' && <Pill className="h-4 w-4 text-green-600" />}
                             {activity.type === 'cancellation' && <XCircle className="h-4 w-4 text-red-600" />}
@@ -1408,12 +1438,12 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                         <CardContent className="p-6">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-start gap-4 flex-1">
-                              <div className={`p-3 rounded-full ${orderStatus === 'confirmed' ? 'bg-gradient-to-br from-blue-500 to-indigo-500' :
+                              <div className={`p - 3 rounded - full ${orderStatus === 'confirmed' ? 'bg-gradient-to-br from-blue-500 to-indigo-500' :
                                 orderStatus === 'shipped' ? 'bg-gradient-to-br from-indigo-500 to-purple-500' :
                                   orderStatus === 'delivered' ? 'bg-gradient-to-br from-green-500 to-emerald-500' :
                                     orderStatus === 'pending' ? 'bg-gradient-to-br from-amber-500 to-orange-500' :
                                       'bg-gradient-to-br from-red-500 to-rose-500'
-                                }`}>
+                                } `}>
                                 <Package className="h-5 w-5 text-white" />
                               </div>
                               <div className="flex-1">
@@ -1462,7 +1492,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                                     <p className="text-sm text-gray-700">
                                       {typeof order.address === 'string'
                                         ? order.address
-                                        : `${order.address.street}, ${order.address.city}, ${order.address.district || ''}`}
+                                        : `${order.address.street}, ${order.address.city}, ${order.address.district || ''} `}
                                     </p>
                                   </div>
                                 )}
@@ -1618,11 +1648,11 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-start gap-4 flex-1">
-                          <div className={`p-3 rounded-full ${appointment.status === 'pending' ? 'bg-gradient-to-br from-amber-500 to-orange-500' :
+                          <div className={`p - 3 rounded - full ${appointment.status === 'pending' ? 'bg-gradient-to-br from-amber-500 to-orange-500' :
                             appointment.status === 'confirmed' ? 'bg-gradient-to-br from-blue-500 to-indigo-500' :
                               appointment.status === 'completed' ? 'bg-gradient-to-br from-green-500 to-emerald-500' :
                                 'bg-gradient-to-br from-red-500 to-rose-500'
-                            }`}>
+                            } `}>
                             <Calendar className="h-5 w-5 text-white" />
                           </div>
                           <div className="flex-1">
@@ -1685,9 +1715,9 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                       {(appointment.status === 'completed' || appointment.status === 'cancelled') && (
                         <div className="space-y-2">
                           <div className={`${appointment.status === 'completed' ? 'bg-green-100 border-green-300' : 'bg-red-100 border-red-300'
-                            } border rounded-lg p-3 text-center`}>
+                            } border rounded - lg p - 3 text - center`}>
                             <span className={`${appointment.status === 'completed' ? 'text-green-700' : 'text-red-700'
-                              } font-medium`}>
+                              } font - medium`}>
                               {appointment.status === 'completed' ? '✓ Appointment Completed' : '✗ Appointment Cancelled'}
                             </span>
                           </div>
@@ -1781,7 +1811,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                     {paymentActivities.map((activity) => (
                       <div key={activity.id} className="flex items-center justify-between p-4 border border-amber-200 rounded-xl hover:border-amber-300 hover:shadow-sm transition-all">
                         <div className="flex items-start gap-3 flex-1">
-                          <div className={`p-2 rounded-lg ${activity.action === 'Verified' ? 'bg-green-100' : 'bg-red-100'}`}>
+                          <div className={`p - 2 rounded - lg ${activity.action === 'Verified' ? 'bg-green-100' : 'bg-red-100'} `}>
                             {activity.action === 'Verified' ?
                               <CheckCircle className="h-4 w-4 text-green-600" /> :
                               <XCircle className="h-4 w-4 text-red-600" />
@@ -2040,10 +2070,10 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                         <div className="space-y-4">
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-3">
-                              <div className={`p-3 rounded-full ${prescription.status === 'pending' ? 'bg-gradient-to-br from-amber-500 to-orange-500' :
+                              <div className={`p - 3 rounded - full ${prescription.status === 'pending' ? 'bg-gradient-to-br from-amber-500 to-orange-500' :
                                 prescription.status === 'approved' ? 'bg-gradient-to-br from-green-500 to-emerald-500' :
                                   'bg-gradient-to-br from-red-500 to-rose-500'
-                                }`}>
+                                } `}>
                                 <FileText className="h-5 w-5 text-white" />
                               </div>
                               <div>
@@ -2166,6 +2196,87 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                   </Card>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'reviews' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Review Management</h2>
+                  <p className="text-gray-600">Manage user reviews for doctors, medicines, and hospitals</p>
+                </div>
+              </div>
+
+              <Card className="border-2 border-amber-200">
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50">
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="h-5 w-5 text-amber-600" />
+                    All Reviews
+                  </CardTitle>
+                  <CardDescription>Approve, reject, or delete user-submitted reviews</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Target</TableHead>
+                        <TableHead>Rating</TableHead>
+                        <TableHead>Comment</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reviews.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                            <Star className="h-12 w-12 text-amber-300 mx-auto mb-2" />
+                            <p>No reviews found</p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        reviews.map((review) => (
+                          <TableRow key={review._id || review.id}>
+                            <TableCell>{review.userName}</TableCell>
+                            <TableCell>
+                              <span className="capitalize">{review.targetType}</span>
+                              {/* Ideally fetching target name here, but ID is what we have for now, or fetch map */}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star key={i} className={`h-4 w-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'} `} />
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">{review.comment}</TableCell>
+                            <TableCell>
+                              <Badge className={review.status === 'approved' ? 'bg-green-500' : review.status === 'rejected' ? 'bg-red-500' : 'bg-amber-500'}>
+                                {review.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                {review.status === 'pending' && (
+                                  <>
+                                    <Button size="sm" onClick={() => handleUpdateReviewStatus(review._id || review.id || '', 'approved')} className="bg-green-500 hover:bg-green-600 text-white">Approve</Button>
+                                    <Button size="sm" variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={() => handleUpdateReviewStatus(review._id || review.id || '', 'rejected')}>Reject</Button>
+                                  </>
+                                )}
+                                <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 border-red-200" onClick={() => handleDeleteReview(review._id || review.id || '')}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -2954,7 +3065,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                       {message.replies.length > 0 && (
                         <div className="space-y-3 mb-4">
                           {message.replies.map((reply: any, idx: number) => (
-                            <div key={idx} className={`${reply.admin ? 'bg-gradient-to-r from-amber-100 to-orange-100 ml-8' : 'bg-gray-100 mr-8'} rounded-xl p-4`}>
+                            <div key={idx} className={`${reply.admin ? 'bg-gradient-to-r from-amber-100 to-orange-100 ml-8' : 'bg-gray-100 mr-8'} rounded - xl p - 4`}>
                               <div className="flex items-center gap-2 mb-2">
                                 <Badge className={reply.admin ? 'bg-amber-600' : 'bg-gray-600'}>
                                   {reply.admin ? 'Admin' : 'User'}

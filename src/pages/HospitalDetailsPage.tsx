@@ -6,6 +6,8 @@ import { Badge } from '../components/ui/badge';
 import { useData } from '../contexts/DataContext';
 import { useParams } from 'react-router-dom';
 import { HospitalProfileSeo } from '../seo-pages/HospitalProfileSeo';
+import { ReviewList } from '../components/reviews/ReviewList';
+import { ReviewForm } from '../components/reviews/ReviewForm';
 
 export function HospitalDetailsPage({ onNavigate }: { onNavigate: (page: string, data?: any) => void }) {
   const { hospitalId } = useParams();
@@ -161,6 +163,19 @@ export function HospitalDetailsPage({ onNavigate }: { onNavigate: (page: string,
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Reviews Section */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Hospital Reviews</CardTitle>
+                <div className="flex gap-2">
+                  <ReviewForm targetId={hospital.id} targetType="hospital" onSuccess={() => window.location.reload()} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ReviewList targetId={hospital.id} />
               </CardContent>
             </Card>
           </div>

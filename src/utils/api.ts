@@ -139,3 +139,12 @@ export const settingsAPI = {
   getAll: () => apiCall<any[]>('/settings'),
 };
 
+// Reviews API
+export const reviewsAPI = {
+  create: (data: any) => apiCall<any>('/reviews', { method: 'POST', body: JSON.stringify(data) }),
+  getByTargetId: (targetId: string) => apiCall<any[]>(`/reviews/${targetId}`),
+  getAllAdmin: () => apiCall<any[]>('/reviews/admin/all'),
+  updateStatus: (id: string, status: string) => apiCall<any>(`/reviews/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  delete: (id: string) => apiCall<any>(`/reviews/${id}`, { method: 'DELETE' }),
+};
+

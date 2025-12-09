@@ -16,6 +16,7 @@ import messagesRoutes from './routes/messages.js';
 import refundsRoutes from './routes/refunds.js';
 import cartsRoutes from './routes/carts.js';
 import settingsRoutes from './routes/settings.js';
+import reviewsRoutes from './routes/reviews.js';
 
 const app = express();
 const PORT = process.env.PORT || 5500;
@@ -67,6 +68,7 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/refunds', refundsRoutes);
 app.use('/api/carts', cartsRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/reviews', reviewsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

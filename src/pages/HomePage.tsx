@@ -43,7 +43,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {doctors.slice(0, 3).map((doctor) => (
+          {doctors.slice(0, 12).map((doctor) => (
             <DoctorCard
               key={doctor.id}
               doctor={doctor}
@@ -77,7 +77,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {medicines.slice(0, 4).map((medicine) => (
+            {medicines.slice(0, 16).map((medicine) => (
               <MedicineCard
                 key={medicine.id}
                 medicine={medicine}
@@ -107,7 +107,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {hospitals.slice(0, 3).map((hospital) => (
+          {hospitals.slice(0, 6).map((hospital) => (
             <HospitalCard
               key={hospital.id}
               hospital={hospital}

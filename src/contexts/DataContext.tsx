@@ -57,6 +57,20 @@ export interface Hospital {
   rating?: number;
 }
 
+export interface Review {
+  _id?: string;
+  id?: string;
+  userId: string;
+  userName: string;
+  targetId: string;
+  targetType: 'doctor' | 'hospital';
+  rating: number;
+  comment: string;
+  status: 'pending' | 'approved' | 'rejected';
+  appointmentId?: string;
+  createdAt?: string;
+}
+
 export interface Appointment {
   _id?: string;
   id: string;
