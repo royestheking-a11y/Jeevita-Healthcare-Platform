@@ -252,6 +252,7 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
               <ImageUploadWithCrop
                 currentImage={prescriptionImage}
                 onImageSelected={(image) => {
+                  console.log('Image selected, length:', image.length);
                   setPrescriptionImage(image);
                   setAnalysisResult(null); // Reset analysis on new image
                 }}
@@ -263,7 +264,10 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
                 <Button
                   onClick={handleAnalyze}
                   disabled={!prescriptionImage || analyzing || !!analysisResult}
-                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg"
+                  className={`w-full text-white shadow-lg transition-all duration-300 ${prescriptionImage && !analysisResult && !analyzing
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 animate-pulse scale-105'
+                    : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700'
+                    }`}
                 >
                   {analyzing ? (
                     <>
@@ -273,7 +277,7 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
                   ) : (
                     <>
                       <Sparkles className="h-4 w-4 mr-2" />
-                      {analysisResult ? 'Analysis Complete' : 'Analyze Prescription'}
+                      {analysisResult ? 'Analysis Complete' : 'Step 2: Analyze Prescription'}
                     </>
                   )}
                 </Button>

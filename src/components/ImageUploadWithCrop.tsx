@@ -54,6 +54,8 @@ export function ImageUploadWithCrop({
         setPosition({ x: 0, y: 0 });
       };
       reader.readAsDataURL(file);
+    } else {
+      toast.error('Please upload a valid image file (JPG, PNG). PDF execution is not yet supported in this view.');
     }
   };
 
