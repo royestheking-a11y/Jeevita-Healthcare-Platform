@@ -74,10 +74,16 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
     // Chat States
     const [chatInput, setChatInput] = useState('');
     const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'model'; parts: string; timestamp?: string }[]>([]);
+
+    // Ref for chat container
+    const chatContainerRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        // Use scrollTop on the container to prevent viewport jumping (navbar issue)
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
     };
 
     useEffect(() => {
@@ -127,9 +133,8 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
 
         // Simulate thinking time for better UX
         setTimeout(async () => {
-            // Check for API Key
-            // @ts-ignore
-            const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
+            // Check for API Key properly
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
             let resultData;
 
             if (apiKey) {
@@ -146,12 +151,17 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                     // Basic cleanup to extract JSON if markdown blocks are present
                     const jsonStr = text.replace(/```json|```/g, '').trim();
                     resultData = JSON.parse(jsonStr);
-                } catch (error) {
+                } catch (error: any) {
                     console.error("Gemini Error:", error);
+                    // Show specific error if relevant
+                    if (error.message?.includes('API key')) {
+                        toast.error("Invalid API Key configuration");
+                    }
                     // Fallback to mock if API fails
                     resultData = getMockAnalysis(formData.symptoms);
                 }
             } else {
+                console.warn('Gemini API Key missing');
                 // Use Mock Data
                 resultData = getMockAnalysis(formData.symptoms);
             }
@@ -188,8 +198,7 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
         setLoading(true);
 
         try {
-            // @ts-ignore
-            const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
             if (apiKey) {
                 const genAI = new GoogleGenerativeAI(apiKey);
@@ -221,14 +230,15 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                 setTimeout(() => {
                     setChatHistory([...newHistory, {
                         role: 'model',
-                        parts: "I understand. Given your symptoms, I strongly recommend consulting a specialist immediately. Shall I help you find one?",
+                        parts: "I'm having trouble connecting to the network right now. Given your symptoms, I strongly recommend consulting a specialist immediately. Shall I help you find one?",
                         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     }]);
                 }, 1000);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Chat Error:", error);
-            toast.error("Failed to get response. Please try again.");
+            const errorMsg = error.message || "Unknown error";
+            toast.error(`Analysis failed: ${errorMsg}`);
         } finally {
             setLoading(false);
         }
@@ -491,7 +501,10 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                     {/* Step 3: AI Analysis & Chat */}
                     {step === 3 && (
                         <div className="flex flex-col h-full animate-in fade-in slide-in-from-right duration-500 bg-gray-50/50">
-                            <div className="flex-1 p-6 overflow-y-auto max-h-[500px] scroll-smooth">
+                            <div
+                                ref={chatContainerRef}
+                                className="flex-1 p-6 overflow-y-auto max-h-[500px] scroll-smooth"
+                            >
                                 <div className="space-y-6">
                                     {chatHistory.map((msg, idx) => (
                                         <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
