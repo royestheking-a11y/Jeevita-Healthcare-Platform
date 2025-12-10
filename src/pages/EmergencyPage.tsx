@@ -133,13 +133,23 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
 
         // Simulate thinking time for better UX
         setTimeout(async () => {
-            // Check for API Key properly
-            // Handle multiple keys separated by comma (load balancing/fallback)
-            const rawApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-            const apiKeys = rawApiKey.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0);
+            // STRATEGY: Check multiple environment variables to give the user flexibility in Vercel
+            const keys = [
+                import.meta.env.VITE_GEMINI_API_KEY,
+                import.meta.env.VITE_GEMINI_API_KEY_2,
+                import.meta.env.VITE_GEMINI_API_KEY_3
+            ];
 
-            // Pick a random key from the available pool to distribute load
-            const apiKey = apiKeys.length > 0 ? apiKeys[Math.floor(Math.random() * apiKeys.length)] : null;
+            // 1. Flatten comma-separated strings (if any)
+            // 2. Filter out undefined/empty/placeholder values
+            const validKeys = keys
+                .filter(k => k && k.length > 10) // Basic length check
+                .flatMap(k => k?.includes(',') ? k.split(',') : [k])
+                .map(k => k?.trim())
+                .filter(k => k && k.length > 10);
+
+            // Pick a random key
+            const apiKey = validKeys.length > 0 ? validKeys[Math.floor(Math.random() * validKeys.length)] : null;
 
             let resultData;
 
@@ -204,10 +214,20 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
         setLoading(true);
 
         try {
-            // Handle multiple keys
-            const rawApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-            const apiKeys = rawApiKey.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0);
-            const apiKey = apiKeys.length > 0 ? apiKeys[Math.floor(Math.random() * apiKeys.length)] : null;
+            // STRATEGY: Check multiple environment variables
+            const keys = [
+                import.meta.env.VITE_GEMINI_API_KEY,
+                import.meta.env.VITE_GEMINI_API_KEY_2,
+                import.meta.env.VITE_GEMINI_API_KEY_3
+            ];
+
+            const validKeys = keys
+                .filter(k => k && k.length > 10)
+                .flatMap(k => k?.includes(',') ? k.split(',') : [k])
+                .map(k => k?.trim())
+                .filter(k => k && k.length > 10);
+
+            const apiKey = validKeys.length > 0 ? validKeys[Math.floor(Math.random() * validKeys.length)] : null;
 
             if (apiKey) {
                 const genAI = new GoogleGenerativeAI(apiKey);
