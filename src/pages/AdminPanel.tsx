@@ -116,7 +116,10 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
     title: '', subtitle: '', cta: '', image: '',
     buttonText: 'Get Started',
     buttonType: 'custom',
-    buttonLink: ''
+    buttonLink: '',
+    videoType: 'none',
+    videoUrl: '',
+    videoFile: null as File | null
   });
 
   // Load messages from API
@@ -521,7 +524,14 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         toast.info('Uploading image...');
         imageUrl = await uploadToCloudinary(carouselForm.image, 'carousel');
       }
-      addCarouselSlide({
+
+      let videoUrl = carouselForm.videoUrl;
+      if (carouselForm.videoType === 'upload' && carouselForm.videoFile) {
+        toast.info('Uploading video...');
+        videoUrl = await uploadToCloudinary(carouselForm.videoFile, 'carousel', 'video');
+      }
+
+      await addCarouselSlide({
         image: imageUrl,
         title: carouselForm.title,
         subtitle: carouselForm.subtitle,
@@ -529,14 +539,16 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         buttonText: carouselForm.buttonText,
         buttonType: carouselForm.buttonType as 'order' | 'appointment' | 'hospital' | 'custom',
         buttonLink: carouselForm.buttonLink,
+        videoType: carouselForm.videoType as 'none' | 'youtube' | 'upload',
+        videoUrl: videoUrl
       });
-      setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: '', buttonType: '', buttonLink: '' });
+      setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: '', buttonType: '', buttonLink: '', videoType: 'none', videoUrl: '', videoFile: null });
       setEditingCarousel(null);
       setShowCarouselForm(false);
       toast.success('Carousel slide added successfully!');
     } catch (error) {
       console.error('Error adding carousel:', error);
-      toast.error('Failed to upload image. Please try again.');
+      toast.error('Failed to upload media. Please try again.');
     }
   };
 
@@ -550,6 +562,9 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
       buttonText: slide.buttonText || 'Get Started',
       buttonType: slide.buttonType || 'custom',
       buttonLink: slide.buttonLink || '',
+      videoType: slide.videoType || 'none',
+      videoUrl: slide.videoUrl || '',
+      videoFile: null
     });
     setShowCarouselForm(true);
   };
@@ -566,7 +581,14 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         toast.info('Uploading image...');
         imageUrl = await uploadToCloudinary(carouselForm.image, 'carousel');
       }
-      updateCarouselSlide(editingCarousel.id, {
+
+      let videoUrl = carouselForm.videoUrl;
+      if (carouselForm.videoType === 'upload' && carouselForm.videoFile) {
+        toast.info('Uploading video...');
+        videoUrl = await uploadToCloudinary(carouselForm.videoFile, 'carousel', 'video');
+      }
+
+      await updateCarouselSlide(editingCarousel.id, {
         image: imageUrl,
         title: carouselForm.title,
         subtitle: carouselForm.subtitle,
@@ -574,14 +596,16 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         buttonText: carouselForm.buttonText,
         buttonType: carouselForm.buttonType as 'order' | 'appointment' | 'hospital' | 'custom',
         buttonLink: carouselForm.buttonLink,
+        videoType: carouselForm.videoType as 'none' | 'youtube' | 'upload',
+        videoUrl: videoUrl
       });
-      setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '' });
+      setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '', videoType: 'none', videoUrl: '', videoFile: null });
       setEditingCarousel(null);
       setShowCarouselForm(false);
       toast.success('Carousel slide updated successfully!');
     } catch (error) {
       console.error('Error updating carousel:', error);
-      toast.error('Failed to upload image. Please try again.');
+      toast.error('Failed to upload media. Please try again.');
     }
   };
 
@@ -1361,7 +1385,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                   setEditingUser(null);
                 }
               }}>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-2xl bg-white">
                   <DialogHeader>
                     <DialogTitle>User Details</DialogTitle>
                     <DialogDescription>
@@ -2335,11 +2359,11 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                   setDoctorForm({ name: '', specialty: '', experience: '', fee: '', rating: '', patients: '', availability: '', image: '' });
                 }
               }}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
                   <DialogHeader>
                     <DialogTitle>{editingDoctor ? 'Edit Doctor' : 'Add New Doctor'}</DialogTitle>
                     <DialogDescription>
-                      {editingDoctor ? 'Update the doctor details' : 'Fill in the details to add a new doctor to the platform'}
+                      {editingDoctor ? 'Update doctor profile and schedule' : 'Create a new doctor profile'}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
@@ -2496,11 +2520,11 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                   });
                 }
               }}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
                   <DialogHeader>
                     <DialogTitle>{editingMedicine ? 'Edit Medicine' : 'Add New Medicine'}</DialogTitle>
                     <DialogDescription>
-                      {editingMedicine ? 'Update the medicine details' : 'Fill in the details to add a new medicine'}
+                      {editingMedicine ? 'Update medicine details and inventory' : 'Add a new medicine to the inventory'}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
@@ -2700,11 +2724,11 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                   });
                 }
               }}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
                   <DialogHeader>
                     <DialogTitle>{editingHospital ? 'Edit Hospital' : 'Add New Hospital'}</DialogTitle>
                     <DialogDescription>
-                      {editingHospital ? 'Update the hospital details' : 'Fill in the details to add a new hospital to the platform'}
+                      {editingHospital ? 'Update hospital details and facilities' : 'Add a new hospital to the network'}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
@@ -2867,7 +2891,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                 </div>
                 <Button onClick={() => {
                   setEditingCarousel(null);
-                  setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '' });
+                  setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '', videoType: 'none', videoUrl: '', videoFile: null });
                   setShowCarouselForm(true);
                 }} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
                   <Plus className="h-4 w-4 mr-2" />
@@ -2908,14 +2932,14 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                 setShowCarouselForm(open);
                 if (!open) {
                   setEditingCarousel(null);
-                  setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '' });
+                  setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '', videoType: 'none', videoUrl: '', videoFile: null });
                 }
               }}>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-2xl bg-white">
                   <DialogHeader>
                     <DialogTitle>{editingCarousel ? 'Edit Carousel Slide' : 'Add Carousel Slide'}</DialogTitle>
                     <DialogDescription>
-                      {editingCarousel ? 'Update the carousel slide details' : 'Create a new carousel slide for the homepage'}
+                      {editingCarousel ? 'Update banner slide details' : 'Add a new banner slide to the homepage'}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
@@ -2985,19 +3009,76 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                       )}
                     </div>
 
-                    <div>
-                      <ImageUploadWithCrop
-                        currentImage={carouselForm.image}
-                        onImageSelected={(image) => setCarouselForm({ ...carouselForm, image })}
-                        aspectRatio={16 / 9}
-                        label="Slide Image (1200x400 recommended)"
-                      />
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Media</h3>
+
+                      <div>
+                        <Label>Slide Background Image (Required)</Label>
+                        <ImageUploadWithCrop
+                          currentImage={carouselForm.image}
+                          onImageSelected={(image) => setCarouselForm({ ...carouselForm, image })}
+                          aspectRatio={16 / 9}
+                          label="Slide Image (1200x400 recommended)"
+                        />
+                      </div>
+
+                      <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <div>
+                          <Label>Video Background (Optional)</Label>
+                          <Select
+                            value={carouselForm.videoType || 'none'}
+                            onValueChange={(value) => setCarouselForm({ ...carouselForm, videoType: value, videoUrl: '', videoFile: null })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select video type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No Video</SelectItem>
+                              <SelectItem value="youtube">YouTube Video</SelectItem>
+                              <SelectItem value="upload">Upload Video</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {carouselForm.videoType === 'youtube' && (
+                          <div>
+                            <Label>YouTube Video URL</Label>
+                            <Input
+                              value={carouselForm.videoUrl}
+                              onChange={(e) => setCarouselForm({ ...carouselForm, videoUrl: e.target.value })}
+                              placeholder="https://www.youtube.com/watch?v=..."
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Video will play silently in background</p>
+                          </div>
+                        )}
+
+                        {carouselForm.videoType === 'upload' && (
+                          <div>
+                            <Label>Upload Video File</Label>
+                            <Input
+                              type="file"
+                              accept="video/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setCarouselForm({ ...carouselForm, videoFile: file });
+                                }
+                              }}
+                              className="cursor-pointer"
+                            />
+                            {carouselForm.videoUrl && !carouselForm.videoFile && (
+                              <p className="text-xs text-green-600 mt-1">Current video: {carouselForm.videoUrl}</p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">Max duration: 10-20 seconds recommended</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2 justify-end">
                       <Button variant="outline" onClick={() => {
                         setShowCarouselForm(false);
                         setEditingCarousel(null);
-                        setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '' });
+                        setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '', videoType: 'none', videoUrl: '', videoFile: null });
                       }}>
                         Cancel
                       </Button>
@@ -3411,7 +3492,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
       {/* Prescription Full Image Dialog */}
       < Dialog open={!!selectedPrescriptionImage
       } onOpenChange={() => setSelectedPrescriptionImage(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
             <DialogTitle>Prescription Full View</DialogTitle>
             <DialogDescription>View the complete prescription image</DialogDescription>
@@ -3430,7 +3511,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
 
       {/* User Cart Management Dialog */}
       < Dialog open={showUserCartDialog} onOpenChange={setShowUserCartDialog} >
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
             <DialogTitle>Manage User Cart - {selectedUserForCart?.userName}</DialogTitle>
             <DialogDescription>

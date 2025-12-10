@@ -143,6 +143,8 @@ export interface CarouselSlide {
   buttonText?: string;
   buttonType?: 'order' | 'appointment' | 'hospital' | 'custom';
   buttonLink?: string;
+  videoType?: 'none' | 'youtube' | 'upload';
+  videoUrl?: string;
 }
 
 export interface UserActivity {

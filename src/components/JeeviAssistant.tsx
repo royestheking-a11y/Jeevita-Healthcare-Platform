@@ -179,7 +179,7 @@ export function JeeviAssistant({ onNavigate, userEmail = 'guest@example.com', us
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl border-2 border-amber-200 z-50 flex flex-col rounded-2xl bg-white overflow-hidden">
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:w-96 h-[75vh] sm:h-[600px] shadow-2xl border-2 border-amber-200 z-50 flex flex-col rounded-2xl bg-white overflow-hidden sm:bottom-6 sm:right-6">
           {/* Header */}
           <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white p-4 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">

@@ -8,7 +8,7 @@ interface EmergencySectionProps {
 
 export function EmergencySection({ onNavigate }: EmergencySectionProps) {
     return (
-        <section className="bg-gradient-to-br from-slate-50 to-blue-50/30 py-32 relative overflow-hidden mt-16">
+        <section className="bg-gradient-to-br from-slate-50 to-blue-50/30 py-20 relative overflow-hidden mt-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                 <div className="bg-white/70 backdrop-blur-xl rounded-3xl p-8 md:p-12 border border-white/50 flex flex-col md:flex-row items-center gap-10">
                     <div className="flex-1 text-left">

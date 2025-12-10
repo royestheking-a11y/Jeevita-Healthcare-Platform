@@ -12,11 +12,37 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
   const { carouselSlides, loading } = useData();
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  const getYoutubeEmbedUrl = (url: string) => {
+    try {
+      if (!url) return '';
+      // Handle standard watch URLs
+      if (url.includes('watch?v=')) {
+        const id = url.split('watch?v=')[1].split('&')[0];
+        return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1&rel=0`;
+      }
+      // Handle short URLs
+      if (url.includes('youtu.be/')) {
+        const id = url.split('youtu.be/')[1].split('?')[0];
+        return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1&rel=0`;
+      }
+      // Handle embed URLs
+      if (url.includes('embed/')) {
+        const id = url.split('embed/')[1].split('?')[0];
+        return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&playsinline=1&rel=0`;
+      }
+      return url;
+    } catch (e) {
+      return url;
+    }
+  };
+
   const slides = carouselSlides.map(slide => ({
     image: slide.image,
     title: slide.title,
     subtitle: slide.subtitle,
     cta: slide.buttonText || slide.cta,
+    videoType: slide.videoType,
+    videoUrl: slide.videoUrl,
     action: () => {
       // Use buttonType if available, otherwise fall back to old logic
       const buttonType = slide.buttonType;
@@ -82,18 +108,41 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
   }
 
   return (
-    <div className="relative h-[500px] md:h-[600px] overflow-hidden">
-      {slides.map((slide: { image: string; title: string; subtitle: string; cta: string; action: () => void }, index: number) => (
+    <div className="relative h-[500px] md:h-[600px] overflow-hidden bg-gray-900">
+      {slides.map((slide: { image: string; title: string; subtitle: string; cta: string; videoType?: string; videoUrl?: string; action: () => void }, index: number) => (
         <div
           key={index}
           className={`absolute inset-0 transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100' : 'opacity-0'
             }`}
         >
-          {/* Background Image with Overlay */}
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${slide.image})` }}
-          >
+          {/* Background Media */}
+          <div className="absolute inset-0 bg-black/20">
+            {slide.videoType === 'youtube' && slide.videoUrl ? (
+              <div className="absolute inset-0 pointer-events-none">
+                <iframe
+                  src={getYoutubeEmbedUrl(slide.videoUrl)}
+                  className="w-full h-full object-cover scale-150"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  style={{ pointerEvents: 'none' }}
+                />
+              </div>
+            ) : slide.videoType === 'upload' && slide.videoUrl ? (
+              <video
+                src={slide.videoUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover"
+                poster={slide.image}
+              />
+            ) : (
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: `url(${slide.image})` }}
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/40" />
           </div>
 

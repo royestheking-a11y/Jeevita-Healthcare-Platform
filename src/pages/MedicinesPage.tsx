@@ -9,6 +9,7 @@ import { Button } from '../components/ui/button';
 import { Search, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { toast } from 'sonner';
+import { ImageUploadWithCrop } from '../components/ImageUploadWithCrop';
 
 interface MedicinesPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -20,7 +21,7 @@ export function MedicinesPage({ onNavigate }: MedicinesPageProps) {
   const { medicines, addPrescription } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [prescriptionFile, setPrescriptionFile] = useState<File | null>(null);
+  const [prescriptionFile, setPrescriptionFile] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
 
@@ -34,12 +35,7 @@ export function MedicinesPage({ onNavigate }: MedicinesPageProps) {
     return matchesSearch && matchesCategory;
   });
 
-  const handlePrescriptionUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPrescriptionFile(file);
-    }
-  };
+  // handlePrescriptionUpload is no longer needed as ImageUploadWithCrop handles it
 
   const submitPrescription = async () => {
     if (!user) {
@@ -51,27 +47,21 @@ export function MedicinesPage({ onNavigate }: MedicinesPageProps) {
     if (prescriptionFile) {
       setUploading(true);
       try {
-        // Convert file to base64 for storage (mock implementation usually expects string)
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const base64String = reader.result as string;
+        // prescriptionFile is already a base64 string from ImageUploadWithCrop
+        await addPrescription({
+          userId: user.id || user._id || '',
+          userName: user.name,
+          userEmail: user.email,
+          image: prescriptionFile,
+          status: 'pending',
+          uploadDate: new Date().toLocaleString(),
+          notes: '',
+        });
 
-          await addPrescription({
-            userId: user.id || user._id || '',
-            userName: user.name,
-            userEmail: user.email,
-            image: base64String,
-            status: 'pending',
-            uploadDate: new Date().toLocaleString(),
-            notes: '',
-          });
-
-          toast.success('Prescription uploaded successfully! Our team will review it shortly.');
-          setPrescriptionFile(null);
-          setUploading(false);
-          setShowDialog(false);
-        };
-        reader.readAsDataURL(prescriptionFile);
+        toast.success('Prescription uploaded successfully! Our team will review it shortly.');
+        setPrescriptionFile(null);
+        setUploading(false);
+        setShowDialog(false);
       } catch (error) {
         console.error('Upload error:', error);
         toast.error('Failed to upload prescription');
@@ -104,33 +94,16 @@ export function MedicinesPage({ onNavigate }: MedicinesPageProps) {
               <DialogHeader>
                 <DialogTitle>Upload Prescription</DialogTitle>
                 <DialogDescription>
-                  Upload your prescription image or PDF. Our team will verify and add the medicines to your account.
+                  Upload your prescription image. Our team will verify and add the medicines to your account.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center">
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handlePrescriptionUpload}
-                    className="hidden"
-                    id="prescription-upload"
-                  />
-                  <label htmlFor="prescription-upload" className="cursor-pointer">
-                    <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-2">
-                      Click to upload or drag and drop
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      PNG, JPG or PDF (max. 10MB)
-                    </p>
-                  </label>
-                  {prescriptionFile && (
-                    <p className="mt-4 text-sm text-[#2A9D8F]">
-                      Selected: {prescriptionFile.name}
-                    </p>
-                  )}
-                </div>
+                <ImageUploadWithCrop
+                  onImageSelected={(image) => setPrescriptionFile(image)}
+                  currentImage={typeof prescriptionFile === 'string' ? prescriptionFile : ''}
+                  label="Prescription Image"
+                  aspectRatio={3 / 4} // Portrait-ish for prescriptions
+                />
                 <Button
                   onClick={submitPrescription}
                   disabled={!prescriptionFile || uploading}

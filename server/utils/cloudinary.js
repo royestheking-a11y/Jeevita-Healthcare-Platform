@@ -39,22 +39,23 @@ export const uploadImage = async (imageData, folder) => {
 };
 
 /**
- * Delete image from Cloudinary by URL
- * @param {string} imageUrl - Cloudinary image URL
+ * Delete image or video from Cloudinary by URL
+ * @param {string} url - Cloudinary resource URL
+ * @param {string} resourceType - 'image' or 'video' (default: 'image')
  */
-export const deleteImage = async (imageUrl) => {
-    if (!imageUrl || !imageUrl.includes('cloudinary.com')) {
+export const deleteImage = async (url, resourceType = 'image') => {
+    if (!url || !url.includes('cloudinary.com')) {
         return;
     }
 
     try {
-        const publicId = extractPublicId(imageUrl);
+        const publicId = extractPublicId(url);
         if (publicId) {
-            await cloudinary.uploader.destroy(publicId);
-            console.log(`Deleted Cloudinary image: ${publicId}`);
+            await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+            console.log(`Deleted Cloudinary ${resourceType}: ${publicId}`);
         }
     } catch (error) {
-        console.error('Cloudinary delete error:', error);
+        console.error(`Cloudinary delete error (${resourceType}):`, error);
     }
 };
 

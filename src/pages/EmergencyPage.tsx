@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { ArrowLeft, Video, MessageSquare, CheckCircle, Brain, HeartPulse, Thermometer, AlertTriangle, Activity, Baby, Stethoscope, ArrowRight, MapPin } from 'lucide-react';
+import { ArrowLeft, Video, MessageSquare, CheckCircle, Brain, HeartPulse, Thermometer, AlertTriangle, Activity, Baby, Stethoscope, ArrowRight, MapPin, Shield } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { toast } from 'sonner';
 
@@ -18,15 +19,70 @@ const MOCK_LOCATION = {
 
 export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?: any) => void }) {
     const { doctors } = useData();
+    const { user } = useAuth(); // Get user from AuthContext
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [analyzing, setAnalyzing] = useState(false);
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [address, setAddress] = useState<string>('');
 
+    // Auth Protection
+    useEffect(() => {
+        if (!user) {
+            // toast.error("Please login to access Emergency services.");
+            // onNavigate('login');
+        }
+    }, [user, onNavigate]);
+
+    if (!user) {
+        return (
+            <div className="min-h-screen pt-20 flex items-center justify-center bg-gray-50 px-4">
+                <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border-t-4 border-red-500 text-center">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                        <Shield className="w-8 h-8 text-red-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Emergency Access Restricted</h2>
+                    <p className="text-gray-600 mb-6">
+                        To prioritize patient safety and data security, please sign in to access the Emergency AI Doctor service.
+                    </p>
+                    <div className="space-y-3">
+                        <Button
+                            className="w-full bg-red-600 hover:bg-red-700 text-white h-12 text-lg shadow-lg shadow-red-200"
+                            onClick={() => onNavigate('login')}
+                        >
+                            Sign In / Login
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="w-full h-12"
+                            onClick={() => onNavigate('signup')}
+                        >
+                            Create Account
+                        </Button>
+                        <button
+                            onClick={() => onNavigate('home')}
+                            className="text-sm text-gray-400 hover:text-gray-600 mt-4 block mx-auto"
+                        >
+                            Back to Home
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // Chat States
     const [chatInput, setChatInput] = useState('');
-    const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'model'; parts: string }[]>([]);
+    const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'model'; parts: string; timestamp?: string }[]>([]);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [chatHistory, loading]);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -121,22 +177,59 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
     const handleChatSubmit = async () => {
         if (!chatInput.trim()) return;
 
-        const newHistory = [...chatHistory, { role: 'user' as const, parts: chatInput }];
+        const userMsg = {
+            role: 'user' as const,
+            parts: chatInput,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        const newHistory = [...chatHistory, userMsg];
         setChatHistory(newHistory);
         setChatInput('');
         setLoading(true);
 
         try {
-            // Simulating a response for now to keep it snappy without burning API tokens in dev
-            // In prod, this would call multi-turn chat API
-            setTimeout(() => {
+            // @ts-ignore
+            const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
+
+            if (apiKey) {
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+                // Construct conversation history for context
+                const historyPrompt = newHistory.map(msg =>
+                    `${msg.role === 'user' ? 'Patient' : 'AI Doctor'}: ${msg.parts}`
+                ).join('\n');
+
+                const fullPrompt = `You are an expert AI Emergency Doctor. 
+                Context: Patient (${formData.age}, ${formData.name}) has symptoms: ${formData.symptoms}.
+                Previous conversation:
+                ${historyPrompt}
+                
+                AI Doctor: (Reply naturally, keep it concise, reassuring, and medically sound. If serious, urge to see a doctor immediately.)`;
+
+                const result = await model.generateContent(fullPrompt);
+                const response = await result.response;
+                const text = response.text();
+
                 setChatHistory([...newHistory, {
                     role: 'model',
-                    parts: "I understand. Given that information, I strongly recommend consulting a specialist immediately. Shall I connect you with Dr. Sarah (General Physician) or Dr. Anis (Cardiologist)?"
+                    parts: text,
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 }]);
-                setLoading(false);
-            }, 1000);
+            } else {
+                // Fallback Mock
+                setTimeout(() => {
+                    setChatHistory([...newHistory, {
+                        role: 'model',
+                        parts: "I understand. Given your symptoms, I strongly recommend consulting a specialist immediately. Shall I help you find one?",
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    }]);
+                }, 1000);
+            }
         } catch (error) {
+            console.error("Chat Error:", error);
+            toast.error("Failed to get response. Please try again.");
+        } finally {
             setLoading(false);
         }
     };
@@ -275,7 +368,8 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                                         className="w-full h-14 text-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 flex items-center justify-center gap-2 rounded-xl shadow-sm transition-all hover:shadow-md"
                                     >
                                         <MapPin className="h-5 w-5" />
-                                        Locate Nearest Hospitals on Map
+                                        <span className="hidden sm:inline">Locate Nearest Hospitals on Map</span>
+                                        <span className="sm:hidden">Find Nearby Hospitals</span>
                                     </Button>
                                 </div>
                             </div>
@@ -326,7 +420,8 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                                         className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 px-6 py-3 rounded-xl shadow-sm transition-all hover:shadow-md"
                                     >
                                         <MapPin className="h-5 w-5" />
-                                        Locate Nearest Hospitals on Map
+                                        <span className="hidden sm:inline">Locate Nearest Hospitals on Map</span>
+                                        <span className="sm:hidden">Find Nearby Hospitals</span>
                                     </Button>
                                 </div>
                             </div>
@@ -395,48 +490,84 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
 
                     {/* Step 3: AI Analysis & Chat */}
                     {step === 3 && (
-                        <div className="flex flex-col h-full animate-in fade-in slide-in-from-right duration-500">
-                            <div className="flex-1 p-6 overflow-y-auto bg-gray-50 max-h-[400px]">
-                                {chatHistory.map((msg, idx) => (
-                                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-                                        <div className={`max-w-[80%] p-4 rounded-2xl ${msg.role === 'user'
-                                            ? 'bg-red-600 text-white rounded-tr-none'
-                                            : 'bg-white border border-gray-200 rounded-tl-none shadow-sm text-gray-800'
-                                            }`}>
-                                            <p className="whitespace-pre-line leading-relaxed">{msg.parts}</p>
+                        <div className="flex flex-col h-full animate-in fade-in slide-in-from-right duration-500 bg-gray-50/50">
+                            <div className="flex-1 p-6 overflow-y-auto max-h-[500px] scroll-smooth">
+                                <div className="space-y-6">
+                                    {chatHistory.map((msg, idx) => (
+                                        <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                            {msg.role === 'model' && (
+                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-50 to-red-100 border border-red-200 flex items-center justify-center flex-shrink-0">
+                                                    <Brain className="w-4 h-4 text-red-600" />
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-col max-w-[80%]">
+                                                <div className={`p-4 rounded-2xl shadow-sm ${msg.role === 'user'
+                                                    ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-tr-none'
+                                                    : 'bg-white border border-gray-100 text-gray-800 rounded-tl-none'
+                                                    }`}>
+                                                    <p className="whitespace-pre-line leading-relaxed text-[15px]">{msg.parts}</p>
+                                                </div>
+                                                <span className={`text-[10px] mt-1 px-1 ${msg.role === 'user' ? 'text-right text-gray-400' : 'text-left text-gray-400'}`}>
+                                                    {msg.timestamp || 'Just now'}
+                                                </span>
+                                            </div>
+
+                                            {msg.role === 'user' && (
+                                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-xs font-bold text-gray-600">ME</span>
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
-                                {loading && (
-                                    <div className="flex justify-start mb-4">
-                                        <div className="bg-white border border-gray-200 p-4 rounded-2xl rounded-tl-none shadow-sm">
-                                            <div className="flex gap-1">
-                                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                    ))}
+
+                                    {loading && (
+                                        <div className="flex gap-3 justify-start">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-50 to-red-100 border border-red-200 flex items-center justify-center flex-shrink-0">
+                                                <Brain className="w-4 h-4 text-red-600" />
+                                            </div>
+                                            <div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-tl-none shadow-sm">
+                                                <div className="flex gap-1.5 ">
+                                                    <span className="w-2 h-2 bg-red-400 rounded-full animate-bounce"></span>
+                                                    <span className="w-2 h-2 bg-red-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                                    <span className="w-2 h-2 bg-red-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                    <div ref={messagesEndRef} />
+                                </div>
                             </div>
-                            <div className="p-4 bg-white border-t flex gap-2">
-                                <Input
+
+                            <div className="p-4 bg-white border-t flex gap-3 shadow-lg shadow-gray-100 items-end">
+                                <textarea
                                     value={chatInput}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setChatInput(e.target.value)}
-                                    onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleChatSubmit()}
-                                    placeholder="Ask a question..."
-                                    className="h-12 bg-white text-black border-gray-300 placeholder:text-gray-500"
-                                    style={{ backgroundColor: '#ffffff', color: '#000000' }}
+                                    onChange={(e) => setChatInput(e.target.value)}
+                                    // startDate={undefined} // Removed invalid prop
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleChatSubmit();
+                                        }
+                                    }}
+                                    placeholder="Type your message..."
+                                    className="flex-1 min-h-[50px] max-h-[120px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none bg-gray-50 text-base"
                                 />
-                                <Button onClick={handleChatSubmit} size="icon" className="h-12 w-12 bg-red-600 hover:bg-red-700 shrink-0">
-                                    <ArrowRight className="h-5 w-5" />
+                                <Button
+                                    onClick={handleChatSubmit}
+                                    className="h-[50px] w-[50px] rounded-xl bg-red-600 hover:bg-red-700 shadow-lg shadow-red-200 flex items-center justify-center shrink-0 transition-all hover:scale-105"
+                                >
+                                    <ArrowRight className="h-6 w-6" />
                                 </Button>
                             </div>
-                            <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
-                                <Button variant="ghost" onClick={handleBack}>Back</Button>
-                                <Button className="bg-green-600 hover:bg-green-700 text-white px-8" onClick={() => setStep(4)}>
-                                    Connect to Doctor Now
-                                </Button>
+
+                            <div className="px-6 py-3 bg-gray-50 border-t flex justify-between items-center text-sm">
+                                <button onClick={handleBack} className="text-gray-500 hover:text-gray-800 font-medium">
+                                    ← Back
+                                </button>
+                                <button className="text-green-600 hover:text-green-700 font-bold flex items-center gap-1" onClick={() => setStep(4)}>
+                                    Connect to Doctor <ArrowRight className="h-4 w-4" />
+                                </button>
                             </div>
                         </div>
                     )}

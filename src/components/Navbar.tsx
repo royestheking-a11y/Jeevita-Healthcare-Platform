@@ -183,6 +183,12 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
             >
               {t('nav.hospitals')}
             </button>
+            <button
+              onClick={() => onNavigate('emergency')}
+              className="text-sm font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-all animate-pulse"
+            >
+              Emergency
+            </button>
 
             {/* Language Toggle */}
             <button
@@ -343,6 +349,15 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                 className="text-left py-2 px-4 hover:bg-amber-50 rounded-lg text-gray-700 font-medium"
               >
                 {t('nav.hospitals')}
+              </button>
+              <button
+                onClick={() => {
+                  onNavigate('emergency');
+                  setMobileMenuOpen(false);
+                }}
+                className="text-left py-2 px-4 hover:bg-red-50 rounded-lg text-red-600 font-bold"
+              >
+                Emergency AI Doctor
               </button>
 
               <div className="flex gap-2 px-4 py-2">

@@ -11,7 +11,13 @@ const carouselSlideSchema = new mongoose.Schema({
     enum: ['order', 'appointment', 'hospital', 'custom'],
     default: 'custom'
   },
-  buttonLink: { type: String, default: '' }
+  buttonLink: { type: String, default: '' },
+  videoType: {
+    type: String,
+    enum: ['none', 'youtube', 'upload'],
+    default: 'none'
+  },
+  videoUrl: { type: String, default: '' }
 }, {
   timestamps: true
 });

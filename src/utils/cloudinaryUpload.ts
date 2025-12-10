@@ -11,38 +11,43 @@ interface CloudinaryResponse {
 }
 
 /**
- * Upload image to Cloudinary using unsigned upload preset
- * @param imageData - Base64 image data URL
- * @param folder - Folder for organizing images (e.g., 'doctors', 'medicines')
+ * Upload image or video to Cloudinary using unsigned upload preset
+ * @param fileData - Base64 data URL or File object
+ * @param folder - Folder for organizing files
+ * @param resourceType - 'image' or 'video' (default: 'image')
  * @returns Cloudinary secure URL
  */
 export const uploadToCloudinary = async (
-    imageData: string,
-    folder: string
+    fileData: string | File,
+    folder: string,
+    resourceType: 'image' | 'video' = 'image'
 ): Promise<string> => {
-    // Skip if already a Cloudinary URL
-    if (imageData.includes('cloudinary.com')) {
-        return imageData;
-    }
-
-    // Skip if not a base64 data URL
-    if (!imageData.startsWith('data:')) {
-        return imageData;
+    // Skip if already a Cloudinary URL (only for strings)
+    if (typeof fileData === 'string' && fileData.includes('cloudinary.com')) {
+        return fileData;
     }
 
     try {
         const formData = new FormData();
 
-        // Convert base64 to blob
-        const response = await fetch(imageData);
-        const blob = await response.blob();
+        if (typeof fileData === 'string') {
+            // Handle Base64 string
+            if (!fileData.startsWith('data:')) {
+                return fileData; // Return as is if it's just a URL but not cloudinary (unlikely but safe)
+            }
+            const response = await fetch(fileData);
+            const blob = await response.blob();
+            formData.append('file', blob);
+        } else {
+            // Handle File object (for videos)
+            formData.append('file', fileData);
+        }
 
-        formData.append('file', blob);
         formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
         formData.append('folder', `jeevita/${folder}`);
 
         const uploadResponse = await fetch(
-            `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+            `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
             {
                 method: 'POST',
                 body: formData,
@@ -52,14 +57,14 @@ export const uploadToCloudinary = async (
         if (!uploadResponse.ok) {
             const errorData = await uploadResponse.json();
             console.error('Cloudinary upload error:', errorData);
-            throw new Error(errorData.error?.message || 'Failed to upload image to Cloudinary');
+            throw new Error(errorData.error?.message || `Failed to upload ${resourceType} to Cloudinary`);
         }
 
         const data: CloudinaryResponse = await uploadResponse.json();
-        console.log('Image uploaded to Cloudinary:', data.secure_url);
+        console.log(`${resourceType} uploaded to Cloudinary:`, data.secure_url);
         return data.secure_url;
     } catch (error) {
-        console.error('Error uploading to Cloudinary:', error);
+        console.error(`Error uploading ${resourceType} to Cloudinary:`, error);
         throw error;
     }
 };

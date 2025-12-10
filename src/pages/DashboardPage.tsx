@@ -1086,7 +1086,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
       {/* Profile Photo Dialog */}
       <Dialog open={showProfilePhotoDialog} onOpenChange={setShowProfilePhotoDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-white">
           <DialogHeader>
             <DialogTitle>Manage Profile Photo</DialogTitle>
             <DialogDescription>
@@ -1143,7 +1143,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
       {/* Prescription Upload Dialog */}
       <Dialog open={showPrescriptionUploadDialog} onOpenChange={setShowPrescriptionUploadDialog}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5 text-amber-600" />
@@ -1218,7 +1218,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       </Dialog>
 
       <Dialog open={showRefundDialog} onOpenChange={setShowRefundDialog}>
-        <DialogContent>
+        <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle>Request Refund</DialogTitle>
             <DialogDescription>
