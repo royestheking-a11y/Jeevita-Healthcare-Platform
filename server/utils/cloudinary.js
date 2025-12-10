@@ -5,7 +5,7 @@ dotenv.config();
 
 // Configure Cloudinary
 cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'deal7ji7s',
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'dchrmef0d', // Updated default
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
     secure: true
@@ -48,11 +48,24 @@ export const deleteImage = async (url, resourceType = 'image') => {
         return;
     }
 
+    // Debug: Check credentials existence (don't log values)
+    if (!process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+        console.error('CRITICAL: Cloudinary API Key or Secret is missing in environment variables. Delete skipped.');
+        return;
+    }
+
     try {
         const publicId = extractPublicId(url);
         if (publicId) {
-            await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
-            console.log(`Deleted Cloudinary ${resourceType}: ${publicId}`);
+            console.log(`Attempting to delete from Cloudinary: ${publicId} (Type: ${resourceType})`);
+            const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+            console.log(`Cloudinary Delete Result (${publicId}):`, result);
+
+            if (result.result !== 'ok') {
+                console.warn(`Cloudinary delete warning: Result was '${result.result}' (not 'ok'). Check if resource exists or permissions.`);
+            }
+        } else {
+            console.warn(`Could not extract publicId from URL: ${url}`);
         }
     } catch (error) {
         console.error(`Cloudinary delete error (${resourceType}):`, error);
