@@ -134,7 +134,13 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
         // Simulate thinking time for better UX
         setTimeout(async () => {
             // Check for API Key properly
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            // Handle multiple keys separated by comma (load balancing/fallback)
+            const rawApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+            const apiKeys = rawApiKey.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0);
+
+            // Pick a random key from the available pool to distribute load
+            const apiKey = apiKeys.length > 0 ? apiKeys[Math.floor(Math.random() * apiKeys.length)] : null;
+
             let resultData;
 
             if (apiKey) {
@@ -198,7 +204,10 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
         setLoading(true);
 
         try {
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            // Handle multiple keys
+            const rawApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+            const apiKeys = rawApiKey.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0);
+            const apiKey = apiKeys.length > 0 ? apiKeys[Math.floor(Math.random() * apiKeys.length)] : null;
 
             if (apiKey) {
                 const genAI = new GoogleGenerativeAI(apiKey);
