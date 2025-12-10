@@ -156,7 +156,8 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
             if (apiKey) {
                 try {
                     const genAI = new GoogleGenerativeAI(apiKey);
-                    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                    // Use 'gemini-1.5-flash-latest' which is more stable, or fallback to 'gemini-pro'
+                    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
                     const prompt = `Act as an emergency medical triage assistant. Analyze these symptoms: "${formData.symptoms}" and Emergency Type: "${formData.emergencyType}". 
                     Patient Age: ${formData.age}. Provide a brief assessment (safe, caution, or emergency), a list of likely causes (top 3), and immediate advice (bullet points). 
                     Format as JSON: { "assessment": "string", "causes": ["string"], "advice": ["string"] }`;
@@ -172,6 +173,9 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                     // Show specific error if relevant
                     if (error.message?.includes('API key')) {
                         toast.error("Invalid API Key configuration");
+                    } else if (error.message?.includes('404')) {
+                        // Fallback to gemini-pro if flash fails
+                        toast.error("AI Model error, switching to fallback...");
                     }
                     // Fallback to mock if API fails
                     resultData = getMockAnalysis(formData.symptoms);
@@ -231,7 +235,7 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
 
             if (apiKey) {
                 const genAI = new GoogleGenerativeAI(apiKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
                 // Construct conversation history for context
                 const historyPrompt = newHistory.map(msg =>
