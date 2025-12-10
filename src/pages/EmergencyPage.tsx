@@ -154,15 +154,29 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
             let resultData;
 
             if (apiKey) {
-                try {
-                    const genAI = new GoogleGenerativeAI(apiKey);
-                    // Use 'gemini-1.5-flash-latest' which is more stable, or fallback to 'gemini-pro'
-                    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-                    const prompt = `Act as an emergency medical triage assistant. Analyze these symptoms: "${formData.symptoms}" and Emergency Type: "${formData.emergencyType}". 
+                const genAI = new GoogleGenerativeAI(apiKey);
+                // Fallback mechanism: Try preferred model, then stable fallback
+                const generateWithFallback = async (modelName: string, fallbackModelName: string, promptText: string) => {
+                    try {
+                        const model = genAI.getGenerativeModel({ model: modelName });
+                        return await model.generateContent(promptText);
+                    } catch (error: any) {
+                        if (error.message?.includes('404') || error.message?.includes('not found')) {
+                            console.warn(`Model ${modelName} failed, switching to ${fallbackModelName}`);
+                            const fallbackModel = genAI.getGenerativeModel({ model: fallbackModelName });
+                            return await fallbackModel.generateContent(promptText);
+                        }
+                        throw error;
+                    }
+                };
+
+                const prompt = `Act as an emergency medical triage assistant. Analyze these symptoms: "${formData.symptoms}" and Emergency Type: "${formData.emergencyType}". 
                     Patient Age: ${formData.age}. Provide a brief assessment (safe, caution, or emergency), a list of likely causes (top 3), and immediate advice (bullet points). 
                     Format as JSON: { "assessment": "string", "causes": ["string"], "advice": ["string"] }`;
 
-                    const result = await model.generateContent(prompt);
+                try {
+                    // Try 'gemini-1.5-flash-001' (specific version) -> Fallback to 'gemini-pro' (universal)
+                    const result = await generateWithFallback("gemini-1.5-flash-001", "gemini-pro", prompt);
                     const response = await result.response;
                     const text = response.text();
                     // Basic cleanup to extract JSON if markdown blocks are present
@@ -170,14 +184,12 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                     resultData = JSON.parse(jsonStr);
                 } catch (error: any) {
                     console.error("Gemini Error:", error);
-                    // Show specific error if relevant
                     if (error.message?.includes('API key')) {
                         toast.error("Invalid API Key configuration");
-                    } else if (error.message?.includes('404')) {
-                        // Fallback to gemini-pro if flash fails
-                        toast.error("AI Model error, switching to fallback...");
+                    } else {
+                        toast.error("AI Service Unavailable. Using offline mode.");
                     }
-                    // Fallback to mock if API fails
+                    // Fallback to mock
                     resultData = getMockAnalysis(formData.symptoms);
                 }
             } else {
@@ -235,7 +247,20 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
 
             if (apiKey) {
                 const genAI = new GoogleGenerativeAI(apiKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+
+                // Fallback mechanism for Chat
+                const generateWithFallback = async (modelName: string, fallbackModelName: string, promptText: string) => {
+                    try {
+                        const model = genAI.getGenerativeModel({ model: modelName });
+                        return await model.generateContent(promptText);
+                    } catch (error: any) {
+                        if (error.message?.includes('404') || error.message?.includes('not found')) {
+                            const fallbackModel = genAI.getGenerativeModel({ model: fallbackModelName });
+                            return await fallbackModel.generateContent(promptText);
+                        }
+                        throw error;
+                    }
+                };
 
                 // Construct conversation history for context
                 const historyPrompt = newHistory.map(msg =>
@@ -249,7 +274,8 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                 
                 AI Doctor: (Reply naturally, keep it concise, reassuring, and medically sound. If serious, urge to see a doctor immediately.)`;
 
-                const result = await model.generateContent(fullPrompt);
+                // Try 'gemini-1.5-flash-001' -> Fallback 'gemini-pro'
+                const result = await generateWithFallback("gemini-1.5-flash-001", "gemini-pro", fullPrompt);
                 const response = await result.response;
                 const text = response.text();
 
