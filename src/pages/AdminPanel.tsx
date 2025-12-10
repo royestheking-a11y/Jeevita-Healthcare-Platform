@@ -13,7 +13,8 @@ import {
   CheckCircle, XCircle, TrendingUp, Pill, ShoppingBag, Image as ImageIcon,
   Plus, Edit, Trash2, Send, LayoutDashboard, Menu, X as CloseIcon, Shield,
   Activity, FileText, Settings, ChevronRight,
-  ArrowUpRight, Eye, RotateCcw, Clock, Building2, Heart, Star
+  ArrowUpRight, Eye, RotateCcw, Clock, Building2, Heart, Star,
+  PlayCircle, Upload, Youtube
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useData } from '../contexts/DataContext';
@@ -23,6 +24,7 @@ import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'; // Import Tabs
 import { NotificationService } from '../utils/notifications';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 
@@ -513,8 +515,15 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
   };
 
   const handleAddCarousel = async () => {
-    if (!carouselForm.title || !carouselForm.image) {
-      toast.error('Please fill in title and image');
+    // Check if at least title is present. 
+    // Image is optional if video is present (we auto-generate thumbnail), but at least one media is needed.
+    if (!carouselForm.title) {
+      toast.error('Please fill in the title');
+      return;
+    }
+    // If no video, then image is required
+    if (carouselForm.videoType === 'none' && !carouselForm.image) {
+      toast.error('Please upload an image');
       return;
     }
     try {
@@ -531,11 +540,35 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         videoUrl = await uploadToCloudinary(carouselForm.videoFile, 'carousel', 'video');
       }
 
+      let finalImageUrl = imageUrl;
+
+      // If no image provided but we have a video URL (uploaded or youtube)
+      if (!finalImageUrl && videoUrl) {
+        if (carouselForm.videoType === 'upload' && videoUrl.includes('cloudinary.com')) {
+          // Generate JPG thumbnail from Cloudinary Video URL
+          // Change file extension to .jpg (Cloudinary auto-generates thumbnails)
+          const parts = videoUrl.split('.');
+          parts.pop();
+          finalImageUrl = parts.join('.') + '.jpg';
+        } else if (carouselForm.videoType === 'youtube') {
+          // Attempt to get YouTube thumbnail
+          try {
+            let videoId = '';
+            if (videoUrl.includes('v=')) videoId = videoUrl.split('v=')[1].split('&')[0];
+            else if (videoUrl.includes('youtu.be/')) videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+
+            if (videoId) finalImageUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+          } catch (e) {
+            console.log('Could not extract YouTube thumbnail');
+          }
+        }
+      }
+
       await addCarouselSlide({
-        image: imageUrl,
+        image: finalImageUrl || '', // Allow empty if no image and no video thumbnail could be generated
         title: carouselForm.title,
         subtitle: carouselForm.subtitle,
-        cta: carouselForm.cta,
+        cta: carouselForm.buttonText,
         buttonText: carouselForm.buttonText,
         buttonType: carouselForm.buttonType as 'order' | 'appointment' | 'hospital' | 'custom',
         buttonLink: carouselForm.buttonLink,
@@ -570,10 +603,20 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
   };
 
   const handleUpdateCarousel = async () => {
-    if (!editingCarousel || !carouselForm.title || !carouselForm.image) {
-      toast.error('Please fill in title and image');
+    if (!editingCarousel) return;
+
+    if (!carouselForm.title) {
+      toast.error('Please fill in the title');
       return;
     }
+    // If no video (and not editing an existing video carousel), then image is required
+    // Complex check: if creating new video or keeping existing video, image is optional. 
+    // If resetting to no video, image is required.
+    if (carouselForm.videoType === 'none' && !carouselForm.image) {
+      toast.error('Please upload an image');
+      return;
+    }
+
     try {
       let imageUrl = carouselForm.image;
       // Upload to Cloudinary if it's a new base64 image
@@ -588,11 +631,29 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
         videoUrl = await uploadToCloudinary(carouselForm.videoFile, 'carousel', 'video');
       }
 
+      let finalImageUrl = imageUrl;
+      // If no image provided but we have a video URL (uploaded or youtube)
+      if (!finalImageUrl && videoUrl) {
+        if (carouselForm.videoType === 'upload' && videoUrl.includes('cloudinary.com')) {
+          const parts = videoUrl.split('.');
+          parts.pop();
+          finalImageUrl = parts.join('.') + '.jpg';
+        } else if (carouselForm.videoType === 'youtube') {
+          try {
+            let videoId = '';
+            if (videoUrl.includes('v=')) videoId = videoUrl.split('v=')[1].split('&')[0];
+            else if (videoUrl.includes('youtu.be/')) videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+
+            if (videoId) finalImageUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+          } catch (e) { console.log('Could not extract YouTube thumbnail'); }
+        }
+      }
+
       await updateCarouselSlide(editingCarousel.id, {
-        image: imageUrl,
+        image: finalImageUrl || '',
         title: carouselForm.title,
         subtitle: carouselForm.subtitle,
-        cta: carouselForm.cta,
+        cta: carouselForm.buttonText, // Use buttonText as CTA to satisfy backend requirement
         buttonText: carouselForm.buttonText,
         buttonType: carouselForm.buttonType as 'order' | 'appointment' | 'hospital' | 'custom',
         buttonLink: carouselForm.buttonLink,
@@ -1882,7 +1943,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                       <SelectTrigger className="w-40 border-amber-300">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white">
                         <SelectItem value="daily">Daily</SelectItem>
                         <SelectItem value="weekly">Weekly</SelectItem>
                         <SelectItem value="monthly">Monthly</SelectItem>
@@ -2551,7 +2612,7 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                           <SelectTrigger>
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-white">
                             <SelectItem value="Tablet">Tablet</SelectItem>
                             <SelectItem value="Capsule">Capsule</SelectItem>
                             <SelectItem value="Syrup">Syrup</SelectItem>
@@ -2900,31 +2961,69 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {carouselSlides.map((slide) => (
-                  <Card key={slide.id} className="overflow-hidden group hover:shadow-xl transition-shadow">
-                    <div className="relative h-48">
-                      <img src={slide.image} alt={slide.title} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                      <div className="absolute bottom-4 left-4 text-white">
-                        <h3 className="font-bold text-xl mb-1">{slide.title}</h3>
-                        <p className="text-sm text-white/90">{slide.subtitle}</p>
-                      </div>
-                    </div>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <Badge className="bg-amber-500">{slide.cta}</Badge>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleEditCarousel(slide)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleDeleteCarousel(slide.id)} className="text-red-500 hover:bg-red-50 border-red-200">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                {carouselSlides.map((slide) => {
+                  console.log('Rendering Slide:', slide.id, slide.videoType, slide.videoUrl);
+                  return (
+                    <Card key={slide.id} className="overflow-hidden group hover:shadow-xl transition-shadow">
+                      <div className="relative h-48 bg-gray-900 group-hover:bg-gray-800 transition-colors">
+                        {slide.videoType === 'youtube' && slide.videoUrl ? (
+                          <div className="w-full h-full relative">
+                            <iframe
+                              src={`https://www.youtube.com/embed/${slide.videoUrl.split('v=')[1]?.split('&')[0] || slide.videoUrl.split('youtu.be/')[1]?.split('?')[0]}?controls=0&rel=0`}
+                              className="w-full h-full object-cover pointer-events-none"
+                              title={slide.title}
+                            />
+                          </div>
+                        ) : slide.videoType === 'upload' && slide.videoUrl ? (
+                          <video
+                            src={slide.videoUrl}
+                            className="w-full h-full object-cover bg-black"
+                            muted
+                            loop
+                            playsInline
+                            controls
+                            poster={slide.image}
+                          />
+                        ) : (
+                          <img src={slide.image} alt={slide.title} className="w-full h-full object-cover" />
+                        )}
+
+                        {/* Overlay gradients and text */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none"></div>
+
+                        {/* Video Indicator */}
+                        {(slide.videoType === 'youtube' || slide.videoType === 'upload') && (
+                          <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 border border-white/20 z-10">
+                            {slide.videoType === 'youtube' ? <Youtube className="w-3 h-3 text-red-500" /> : <PlayCircle className="w-3 h-3 text-green-400" />}
+                            <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+                              {slide.videoType}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="absolute bottom-4 left-4 text-white pointer-events-none">
+                          <h3 className="font-bold text-xl mb-1 flex items-center gap-2">
+                            {slide.title}
+                          </h3>
+                          <p className="text-sm text-white/90">{slide.subtitle}</p>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <Badge className="bg-amber-500">{slide.cta}</Badge>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleEditCarousel(slide)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleDeleteCarousel(slide.id)} className="text-red-500 hover:bg-red-50 border-red-200">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
 
               {/* Add/Edit Carousel Dialog */}
@@ -2942,387 +3041,415 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                       {editingCarousel ? 'Update banner slide details' : 'Add a new banner slide to the homepage'}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Slide Title</Label>
-                      <Input
-                        value={carouselForm.title}
-                        onChange={(e) => setCarouselForm({ ...carouselForm, title: e.target.value })}
-                        placeholder="Expert Healthcare"
-                      />
-                    </div>
-                    <div>
-                      <Label>Subtitle</Label>
-                      <Input
-                        value={carouselForm.subtitle}
-                        onChange={(e) => setCarouselForm({ ...carouselForm, subtitle: e.target.value })}
-                        placeholder="Book appointments with top specialists"
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900">Button Configuration</h3>
-
+                  <ScrollArea className="h-[60vh] md:h-[70vh] pr-4">
+                    <div className="space-y-4 pt-4">
                       <div>
-                        <Label>Button Type</Label>
-                        <Select
-                          value={carouselForm.buttonType}
-                          onValueChange={(value) => setCarouselForm({ ...carouselForm, buttonType: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select button type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="order">Order Medicines</SelectItem>
-                            <SelectItem value="appointment">Book Appointment</SelectItem>
-                            <SelectItem value="hospital">Find Hospital</SelectItem>
-                            <SelectItem value="custom">Custom Link</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {carouselForm.buttonType === 'order' && 'Navigates to Medicines page'}
-                          {carouselForm.buttonType === 'appointment' && 'Navigates to Doctors page'}
-                          {carouselForm.buttonType === 'hospital' && 'Navigates to Hospitals page'}
-                          {carouselForm.buttonType === 'custom' && 'Use your own custom link below'}
-                        </p>
-                      </div>
-
-                      <div>
-                        <Label>Button Text</Label>
+                        <Label>Slide Title</Label>
                         <Input
-                          value={carouselForm.buttonText}
-                          onChange={(e) => setCarouselForm({ ...carouselForm, buttonText: e.target.value })}
-                          placeholder="Get Started"
+                          value={carouselForm.title}
+                          onChange={(e) => setCarouselForm({ ...carouselForm, title: e.target.value })}
+                          placeholder="Expert Healthcare"
                         />
                       </div>
-
-                      {carouselForm.buttonType === 'custom' && (
-                        <div>
-                          <Label>Custom Link</Label>
-                          <Input
-                            value={carouselForm.buttonLink}
-                            onChange={(e) => setCarouselForm({ ...carouselForm, buttonLink: e.target.value })}
-                            placeholder="/services or https://example.com"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Enter a relative path (/page) or full URL (https://...)</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-900">Media</h3>
-
                       <div>
-                        <Label>Slide Background Image (Required)</Label>
-                        <ImageUploadWithCrop
-                          currentImage={carouselForm.image}
-                          onImageSelected={(image) => setCarouselForm({ ...carouselForm, image })}
-                          aspectRatio={16 / 9}
-                          label="Slide Image (1200x400 recommended)"
+                        <Label>Subtitle</Label>
+                        <Input
+                          value={carouselForm.subtitle}
+                          onChange={(e) => setCarouselForm({ ...carouselForm, subtitle: e.target.value })}
+                          placeholder="Book appointments with top specialists"
                         />
                       </div>
 
-                      <div className="space-y-4 pt-4 border-t border-gray-100">
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900">Button Configuration</h3>
+
                         <div>
-                          <Label>Video Background (Optional)</Label>
+                          <Label>Button Type</Label>
                           <Select
-                            value={carouselForm.videoType || 'none'}
-                            onValueChange={(value) => setCarouselForm({ ...carouselForm, videoType: value, videoUrl: '', videoFile: null })}
+                            value={carouselForm.buttonType}
+                            onValueChange={(value) => setCarouselForm({ ...carouselForm, buttonType: value })}
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="Select video type" />
+                              <SelectValue placeholder="Select button type" />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">No Video</SelectItem>
-                              <SelectItem value="youtube">YouTube Video</SelectItem>
-                              <SelectItem value="upload">Upload Video</SelectItem>
+                            <SelectContent className="bg-white">
+                              <SelectItem value="order">Order Medicines</SelectItem>
+                              <SelectItem value="appointment">Book Appointment</SelectItem>
+                              <SelectItem value="hospital">Find Hospital</SelectItem>
+                              <SelectItem value="custom">Custom Link</SelectItem>
                             </SelectContent>
                           </Select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {carouselForm.buttonType === 'order' && 'Navigates to Medicines page'}
+                            {carouselForm.buttonType === 'appointment' && 'Navigates to Doctors page'}
+                            {carouselForm.buttonType === 'hospital' && 'Navigates to Hospitals page'}
+                            {carouselForm.buttonType === 'custom' && 'Use your own custom link below'}
+                          </p>
                         </div>
 
-                        {carouselForm.videoType === 'youtube' && (
-                          <div>
-                            <Label>YouTube Video URL</Label>
-                            <Input
-                              value={carouselForm.videoUrl}
-                              onChange={(e) => setCarouselForm({ ...carouselForm, videoUrl: e.target.value })}
-                              placeholder="https://www.youtube.com/watch?v=..."
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Video will play silently in background</p>
-                          </div>
-                        )}
+                        <div>
+                          <Label>Button Text</Label>
+                          <Input
+                            value={carouselForm.buttonText}
+                            onChange={(e) => setCarouselForm({ ...carouselForm, buttonText: e.target.value })}
+                            placeholder="Get Started"
+                          />
+                        </div>
 
-                        {carouselForm.videoType === 'upload' && (
+                        {carouselForm.buttonType === 'custom' && (
                           <div>
-                            <Label>Upload Video File</Label>
+                            <Label>Custom Link</Label>
                             <Input
-                              type="file"
-                              accept="video/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  setCarouselForm({ ...carouselForm, videoFile: file });
-                                }
-                              }}
-                              className="cursor-pointer"
+                              value={carouselForm.buttonLink}
+                              onChange={(e) => setCarouselForm({ ...carouselForm, buttonLink: e.target.value })}
+                              placeholder="/services or https://example.com"
                             />
-                            {carouselForm.videoUrl && !carouselForm.videoFile && (
-                              <p className="text-xs text-green-600 mt-1">Current video: {carouselForm.videoUrl}</p>
-                            )}
-                            <p className="text-xs text-gray-500 mt-1">Max duration: 10-20 seconds recommended</p>
+                            <p className="text-xs text-gray-500 mt-1">Enter a relative path (/page) or full URL (https://...)</p>
                           </div>
                         )}
                       </div>
+
+                      <div className="space-y-4">
+                        <Separator />
+                        <h3 className="text-lg font-semibold text-gray-900">Media Content</h3>
+
+                        <div className="grid grid-cols-1 gap-4">
+                          <div>
+                            <Label className="mb-2 block">
+                              Slide Background Image
+                              {carouselForm.videoType !== 'none' ? ' (Optional - Check video thumbnail)' : ' (Required)'}
+                            </Label>
+                            <ImageUploadWithCrop
+                              currentImage={carouselForm.image}
+                              onImageSelected={(image) => setCarouselForm({ ...carouselForm, image })}
+                              aspectRatio={16 / 9}
+                              label="Slide Image (1200x400 recommended)"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">This image will be shown on mobile or if video fails to load.</p>
+                          </div>
+
+                          <div className="pt-2">
+                            <Label className="mb-2 block">Background Video (Optional)</Label>
+                            <Tabs defaultValue={carouselForm.videoType === 'none' ? 'none' : carouselForm.videoType} onValueChange={(val) => {
+                              if (val === 'none') setCarouselForm({ ...carouselForm, videoType: 'none', videoUrl: '', videoFile: null });
+                              else if (val === 'youtube') setCarouselForm({ ...carouselForm, videoType: 'youtube', videoUrl: '', videoFile: null });
+                              else if (val === 'upload') setCarouselForm({ ...carouselForm, videoType: 'upload', videoUrl: '', videoFile: null });
+                            }} className="w-full">
+                              <TabsList className="grid w-full grid-cols-3 mb-4">
+                                <TabsTrigger value="none">No Video</TabsTrigger>
+                                <TabsTrigger value="youtube">YouTube</TabsTrigger>
+                                <TabsTrigger value="upload">Upload Video</TabsTrigger>
+                              </TabsList>
+
+                              <TabsContent value="none" className="mt-0">
+                                <div className="p-4 border border-dashed rounded-lg bg-gray-50 text-center text-gray-500 text-sm">
+                                  Static image will be displayed.
+                                </div>
+                              </TabsContent>
+
+                              <TabsContent value="youtube" className="mt-0">
+                                <Card className="p-4 border-amber-100 bg-amber-50/30">
+                                  <Label className="mb-2 block flex items-center gap-2">
+                                    <Youtube className="w-4 h-4 text-red-600" />
+                                    YouTube Video URL
+                                  </Label>
+                                  <Input
+                                    value={carouselForm.videoType === 'youtube' ? carouselForm.videoUrl : ''}
+                                    onChange={(e) => setCarouselForm({ ...carouselForm, videoType: 'youtube', videoUrl: e.target.value })}
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    className="bg-white"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                                    <Activity className="w-3 h-3" />
+                                    Video will play silently in the background
+                                  </p>
+                                </Card>
+                              </TabsContent>
+
+                              <TabsContent value="upload" className="mt-0">
+                                <Card className="p-4 border-blue-100 bg-blue-50/30">
+                                  <Label className="mb-2 block flex items-center gap-2">
+                                    <Upload className="w-4 h-4 text-blue-600" />
+                                    Upload Video File
+                                  </Label>
+                                  <Input
+                                    type="file"
+                                    accept="video/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        setCarouselForm({ ...carouselForm, videoType: 'upload', videoFile: file });
+                                      }
+                                    }}
+                                    className="cursor-pointer bg-white file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                  />
+                                  {carouselForm.videoType === 'upload' && carouselForm.videoUrl && !carouselForm.videoFile && (
+                                    <div className="mt-2 text-xs text-green-600 flex items-center gap-1 bg-green-50 p-2 rounded">
+                                      <CheckCircle className="w-3 h-3" />
+                                      Current video uploaded
+                                    </div>
+                                  )}
+                                  <p className="text-xs text-gray-500 mt-2">Max duration: 10-20 seconds recommended (MP4/WebM)</p>
+                                </Card>
+                              </TabsContent>
+                            </Tabs>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex gap-2 justify-end">
-                      <Button variant="outline" onClick={() => {
-                        setShowCarouselForm(false);
-                        setEditingCarousel(null);
-                        setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '', videoType: 'none', videoUrl: '', videoFile: null });
-                      }}>
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={editingCarousel ? handleUpdateCarousel : handleAddCarousel}
-                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30"
-                      >
-                        {editingCarousel ? 'Update Slide' : 'Add Slide'}
-                      </Button>
-                    </div>
+                  </ScrollArea>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => {
+                      setShowCarouselForm(false);
+                      setEditingCarousel(null);
+                      setCarouselForm({ title: '', subtitle: '', cta: '', image: '', buttonText: 'Get Started', buttonType: 'custom', buttonLink: '', videoType: 'none', videoUrl: '', videoFile: null });
+                    }}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={editingCarousel ? handleUpdateCarousel : handleAddCarousel}
+                      className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30"
+                    >
+                      {editingCarousel ? 'Update Slide' : 'Add Slide'}
+                    </Button>
                   </div>
                 </DialogContent>
               </Dialog>
             </div>
-          )}
-
-          {activeTab === 'messages' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Live Messages</h2>
-                <p className="text-gray-600">Chat with users in real-time</p>
-              </div>
-
-              <div className="grid gap-4">
-                {liveMessages.map((message) => (
-                  <Card key={message.id} className={`border-2 ${message.status === 'unread' ? 'border-amber-300 bg-amber-50/50' : 'border-gray-200'} hover:shadow-xl transition-all`}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-start gap-4">
-                          <div className="bg-gradient-to-br from-amber-500 to-orange-500 p-3 rounded-full">
-                            <MessageSquare className="h-5 w-5 text-white" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-bold text-gray-900">{message.userName}</h3>
-                              {message.status === 'unread' && (
-                                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">New</Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600">{message.userEmail}</p>
-                            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {message.timestamp}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {message.status === 'unread' && (
-                            <Button size="sm" variant="outline" onClick={() => handleMarkAsRead(message.id)} className="text-amber-600 hover:bg-amber-50">
-                              Mark as Read
-                            </Button>
-                          )}
-                          <Button size="sm" variant="outline" onClick={() => setLiveMessages(prev => prev.filter(m => m.id !== message.id))} className="text-red-500 hover:bg-red-50">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* User Message */}
-                      <div className="bg-white border border-amber-200 rounded-xl p-4 mb-4">
-                        <p className="text-gray-800">{message.message}</p>
-                      </div>
-
-                      {/* Previous Replies */}
-                      {message.replies.length > 0 && (
-                        <div className="space-y-3 mb-4">
-                          {message.replies.map((reply: any, idx: number) => (
-                            <div key={idx} className={`${reply.admin ? 'bg-gradient-to-r from-amber-100 to-orange-100 ml-8' : 'bg-gray-100 mr-8'} rounded - xl p - 4`}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge className={reply.admin ? 'bg-amber-600' : 'bg-gray-600'}>
-                                  {reply.admin ? 'Admin' : 'User'}
-                                </Badge>
-                                <span className="text-xs text-gray-600">{reply.timestamp}</span>
-                              </div>
-                              <p className="text-gray-800">{reply.text}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Reply Section */}
-                      {activeMessageId === message.id ? (
-                        <div className="space-y-3">
-                          <Textarea
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            placeholder="Type your reply..."
-                            className="border-amber-300 focus:border-amber-500"
-                            rows={3}
-                          />
-                          <div className="flex gap-2 justify-end">
-                            <Button variant="outline" onClick={() => { setActiveMessageId(null); setReplyText(''); }}>
-                              Cancel
-                            </Button>
-                            <Button onClick={() => { handleSendMessage(message.id); setActiveMessageId(null); }} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30">
-                              <Send className="h-4 w-4 mr-2" />
-                              Send Reply
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <Button onClick={() => setActiveMessageId(message.id)} className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30">
-                          <Send className="h-4 w-4 mr-2" />
-                          Reply to {message.userName}
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {liveMessages.length === 0 && (
-                  <Card className="border-2 border-dashed border-amber-200">
-                    <CardContent className="p-12 text-center">
-                      <MessageSquare className="h-12 w-12 text-amber-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No messages yet</p>
-                      <p className="text-sm text-gray-500 mt-2">When users request live chat, their messages will appear here</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'refunds' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Refund Requests</h2>
-                <p className="text-gray-600">Review and process refund requests</p>
-              </div>
-
-              <div className="grid gap-4">
-                {refundRequests.map((request) => (
-                  <Card key={request.id} className={`border-2 ${request.status === 'pending' ? 'border-amber-300 bg-amber-50/30' :
-                    request.status === 'approved' ? 'border-green-300 bg-green-50/30' :
-                      'border-red-300 bg-red-50/30'
-                    } hover:shadow-xl transition-all`}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-gray-900 font-medium">{request.userName}</h3>
-                            <Badge variant="outline">{request.orderType}</Badge>
-                          </div>
-                          <p className="text-sm text-gray-500">Order #{request.orderId}</p>
-                          <p className="text-sm text-gray-500">Date: {request.requestDate}</p>
-                          {request.refundMethod && (
-                            <div className="mt-2 text-sm">
-                              <p className="text-gray-600">
-                                <span className="font-medium">Refund To:</span> <span className="capitalize">{request.refundMethod}</span>
-                              </p>
-                              <p className="text-gray-600">
-                                <span className="font-medium">Number:</span> {request.refundNumber}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <Badge className={
-                            request.status === 'approved' ? 'bg-green-100 text-green-700' :
-                              request.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                'bg-amber-100 text-amber-700'
-                          }>
-                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                          </Badge>
-                          <p className="text-2xl font-bold text-amber-600 mt-2">৳{request.amount}</p>
-                        </div>
-                      </div>
-
-                      {/* Order Details */}
-                      <div className="bg-white border border-amber-200 rounded-xl p-4 mb-4 space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Order Type:</span>
-                          <span className="font-medium">{request.orderType}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Order ID:</span>
-                          <span className="font-medium">{request.orderId}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Transaction ID:</span>
-                          <span className="font-medium text-amber-600">{request.transactionId}</span>
-                        </div>
-                        <Separator />
-                        <div>
-                          <span className="text-gray-600 block mb-1">Reason:</span>
-                          <p className="text-gray-900 font-medium">{request.reason}</p>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      {request.status === 'pending' && (
-                        <div className="flex gap-2">
-                          <Button onClick={() => handleRejectRefund(request.id)} variant="outline" className="flex-1 text-red-600 hover:bg-red-50 border-red-300">
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Reject Refund
-                          </Button>
-                          <Button onClick={() => handleApproveRefund(request.id)} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-lg shadow-green-500/30">
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Approve & Process
-                          </Button>
-                        </div>
-                      )}
-
-                      {request.status === 'approved' && (
-                        <div className="space-y-2">
-                          <div className="bg-green-100 border border-green-300 rounded-lg p-3 text-center">
-                            <CheckCircle className="h-5 w-5 text-green-600 inline mr-2" />
-                            <span className="text-green-700 font-medium">Refund Approved - Amount will be processed to user's bKash/Nagad</span>
-                          </div>
-                          <Button onClick={() => handleDeleteRefund(request.id)} variant="outline" className="w-full text-red-500 hover:bg-red-50 border-red-200">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Record
-                          </Button>
-                        </div>
-                      )}
-
-                      {request.status === 'rejected' && (
-                        <div className="space-y-2">
-                          <div className="bg-red-100 border border-red-300 rounded-lg p-3 text-center">
-                            <XCircle className="h-5 w-5 text-red-600 inline mr-2" />
-                            <span className="text-red-700 font-medium">Refund Request Rejected</span>
-                          </div>
-                          <Button onClick={() => handleDeleteRefund(request.id)} variant="outline" className="w-full text-red-500 hover:bg-red-50 border-red-200">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Record
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {refundRequests.length === 0 && (
-                  <Card className="border-2 border-dashed border-amber-200">
-                    <CardContent className="p-12 text-center">
-                      <RotateCcw className="h-12 w-12 text-amber-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No refund requests</p>
-                      <p className="text-sm text-gray-500 mt-2">Refund requests from users will appear here</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
           )
+          }
+
+          {
+            activeTab === 'messages' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Live Messages</h2>
+                  <p className="text-gray-600">Chat with users in real-time</p>
+                </div>
+
+                <div className="grid gap-4">
+                  {liveMessages.map((message) => (
+                    <Card key={message.id} className={`border-2 ${message.status === 'unread' ? 'border-amber-300 bg-amber-50/50' : 'border-gray-200'} hover:shadow-xl transition-all`}>
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-start gap-4">
+                            <div className="bg-gradient-to-br from-amber-500 to-orange-500 p-3 rounded-full">
+                              <MessageSquare className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-gray-900">{message.userName}</h3>
+                                {message.status === 'unread' && (
+                                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">New</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-600">{message.userEmail}</p>
+                              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {message.timestamp}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            {message.status === 'unread' && (
+                              <Button size="sm" variant="outline" onClick={() => handleMarkAsRead(message.id)} className="text-amber-600 hover:bg-amber-50">
+                                Mark as Read
+                              </Button>
+                            )}
+                            <Button size="sm" variant="outline" onClick={() => setLiveMessages(prev => prev.filter(m => m.id !== message.id))} className="text-red-500 hover:bg-red-50">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* User Message */}
+                        <div className="bg-white border border-amber-200 rounded-xl p-4 mb-4">
+                          <p className="text-gray-800">{message.message}</p>
+                        </div>
+
+                        {/* Previous Replies */}
+                        {message.replies.length > 0 && (
+                          <div className="space-y-3 mb-4">
+                            {message.replies.map((reply: any, idx: number) => (
+                              <div key={idx} className={`${reply.admin ? 'bg-gradient-to-r from-amber-100 to-orange-100 ml-8' : 'bg-gray-100 mr-8'} rounded - xl p - 4`}>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge className={reply.admin ? 'bg-amber-600' : 'bg-gray-600'}>
+                                    {reply.admin ? 'Admin' : 'User'}
+                                  </Badge>
+                                  <span className="text-xs text-gray-600">{reply.timestamp}</span>
+                                </div>
+                                <p className="text-gray-800">{reply.text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Reply Section */}
+                        {activeMessageId === message.id ? (
+                          <div className="space-y-3">
+                            <Textarea
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              placeholder="Type your reply..."
+                              className="border-amber-300 focus:border-amber-500"
+                              rows={3}
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <Button variant="outline" onClick={() => { setActiveMessageId(null); setReplyText(''); }}>
+                                Cancel
+                              </Button>
+                              <Button onClick={() => { handleSendMessage(message.id); setActiveMessageId(null); }} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30">
+                                <Send className="h-4 w-4 mr-2" />
+                                Send Reply
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button onClick={() => setActiveMessageId(message.id)} className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30">
+                            <Send className="h-4 w-4 mr-2" />
+                            Reply to {message.userName}
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {liveMessages.length === 0 && (
+                    <Card className="border-2 border-dashed border-amber-200">
+                      <CardContent className="p-12 text-center">
+                        <MessageSquare className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+                        <p className="text-gray-600">No messages yet</p>
+                        <p className="text-sm text-gray-500 mt-2">When users request live chat, their messages will appear here</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            )
+          }
+
+          {
+            activeTab === 'refunds' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Refund Requests</h2>
+                  <p className="text-gray-600">Review and process refund requests</p>
+                </div>
+
+                <div className="grid gap-4">
+                  {refundRequests.map((request) => (
+                    <Card key={request.id} className={`border-2 ${request.status === 'pending' ? 'border-amber-300 bg-amber-50/30' :
+                      request.status === 'approved' ? 'border-green-300 bg-green-50/30' :
+                        'border-red-300 bg-red-50/30'
+                      } hover:shadow-xl transition-all`}>
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="text-gray-900 font-medium">{request.userName}</h3>
+                              <Badge variant="outline">{request.orderType}</Badge>
+                            </div>
+                            <p className="text-sm text-gray-500">Order #{request.orderId}</p>
+                            <p className="text-sm text-gray-500">Date: {request.requestDate}</p>
+                            {request.refundMethod && (
+                              <div className="mt-2 text-sm">
+                                <p className="text-gray-600">
+                                  <span className="font-medium">Refund To:</span> <span className="capitalize">{request.refundMethod}</span>
+                                </p>
+                                <p className="text-gray-600">
+                                  <span className="font-medium">Number:</span> {request.refundNumber}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <Badge className={
+                              request.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                request.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                  'bg-amber-100 text-amber-700'
+                            }>
+                              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                            </Badge>
+                            <p className="text-2xl font-bold text-amber-600 mt-2">৳{request.amount}</p>
+                          </div>
+                        </div>
+
+                        {/* Order Details */}
+                        <div className="bg-white border border-amber-200 rounded-xl p-4 mb-4 space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Order Type:</span>
+                            <span className="font-medium">{request.orderType}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Order ID:</span>
+                            <span className="font-medium">{request.orderId}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Transaction ID:</span>
+                            <span className="font-medium text-amber-600">{request.transactionId}</span>
+                          </div>
+                          <Separator />
+                          <div>
+                            <span className="text-gray-600 block mb-1">Reason:</span>
+                            <p className="text-gray-900 font-medium">{request.reason}</p>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        {request.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <Button onClick={() => handleRejectRefund(request.id)} variant="outline" className="flex-1 text-red-600 hover:bg-red-50 border-red-300">
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Reject Refund
+                            </Button>
+                            <Button onClick={() => handleApproveRefund(request.id)} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-lg shadow-green-500/30">
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Approve & Process
+                            </Button>
+                          </div>
+                        )}
+
+                        {request.status === 'approved' && (
+                          <div className="space-y-2">
+                            <div className="bg-green-100 border border-green-300 rounded-lg p-3 text-center">
+                              <CheckCircle className="h-5 w-5 text-green-600 inline mr-2" />
+                              <span className="text-green-700 font-medium">Refund Approved - Amount will be processed to user's bKash/Nagad</span>
+                            </div>
+                            <Button onClick={() => handleDeleteRefund(request.id)} variant="outline" className="w-full text-red-500 hover:bg-red-50 border-red-200">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Record
+                            </Button>
+                          </div>
+                        )}
+
+                        {request.status === 'rejected' && (
+                          <div className="space-y-2">
+                            <div className="bg-red-100 border border-red-300 rounded-lg p-3 text-center">
+                              <XCircle className="h-5 w-5 text-red-600 inline mr-2" />
+                              <span className="text-red-700 font-medium">Refund Request Rejected</span>
+                            </div>
+                            <Button onClick={() => handleDeleteRefund(request.id)} variant="outline" className="w-full text-red-500 hover:bg-red-50 border-red-200">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Record
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {refundRequests.length === 0 && (
+                    <Card className="border-2 border-dashed border-amber-200">
+                      <CardContent className="p-12 text-center">
+                        <RotateCcw className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+                        <p className="text-gray-600">No refund requests</p>
+                        <p className="text-sm text-gray-500 mt-2">Refund requests from users will appear here</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            )
           }
 
           {

@@ -129,6 +129,14 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
               </div>
             ) : slide.videoType === 'upload' && slide.videoUrl ? (
               <video
+                ref={(el) => {
+                  if (el && index === currentSlide) {
+                    el.currentTime = 0; // Reset to start
+                    el.play().catch(e => console.log('Autoplay prevented:', e));
+                  } else if (el) {
+                    el.pause();
+                  }
+                }}
                 src={slide.videoUrl}
                 autoPlay
                 loop

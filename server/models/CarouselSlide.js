@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const carouselSlideSchema = new mongoose.Schema({
-  image: { type: String, required: true },
+  image: { type: String, default: '' },
   title: { type: String, required: true },
   subtitle: { type: String, required: true },
   cta: { type: String, required: true },
