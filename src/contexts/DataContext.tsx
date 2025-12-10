@@ -261,8 +261,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Initialize loading based on cache availability. 
   // If we have cached data for critical public sections, we don't need to show a full loader.
-  const hasCachedData = true; // FORCE FOR DEBUG: doctors.length > 0 || medicines.length > 0 || hospitals.length > 0 || carouselSlides.length > 0;
-  const [loading, setLoading] = useState(false); // FORCE FALSE
+  const hasCachedData = doctors.length > 0 || medicines.length > 0 || hospitals.length > 0 || carouselSlides.length > 0;
+  const [loading, setLoading] = useState(!hasCachedData);
 
   const { user } = useAuth(); // Import useAuth to check login status
 
@@ -288,6 +288,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const normalizedMedicines = normalizeArray(medicinesData || []);
         const normalizedHospitals = normalizeArray(hospitalsData || []);
         const normalizedCarousel = normalizeArray(carouselData || []);
+
+        // OPTIMIZATION: Preload critical images (Carousel + Top Doctors)
+        // This ensures that when the splash screen clears, the main visual elements are ready.
+        try {
+          const imagesToPreload = [
+            ...normalizedCarousel.slice(0, 3).map(s => s.image).filter(Boolean), // First 3 slides
+            ...normalizedDoctors.slice(0, 4).map(d => d.image).filter(Boolean)   // First 4 doctors
+          ];
+
+          await Promise.all(imagesToPreload.map(src => {
+            return new Promise((resolve) => {
+              const img = new Image();
+              img.src = src;
+              img.onload = resolve;
+              img.onerror = resolve; // Continue even if one fails
+            });
+          }));
+        } catch (e) {
+          console.log('Image preloading failed', e);
+        }
 
         // Update state
         setDoctors(normalizedDoctors);

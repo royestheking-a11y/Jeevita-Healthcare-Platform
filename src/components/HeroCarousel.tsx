@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useData } from '../contexts/DataContext';
 import { Button } from './ui/button';
+import { Volume2, VolumeX } from 'lucide-react';
 
 interface HeroCarouselProps {
   onNavigate: (page: string) => void;
@@ -11,6 +12,7 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
   const { t } = useLanguage();
   const { carouselSlides, loading } = useData();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isMuted, setIsMuted] = useState(true);
 
   const getYoutubeEmbedUrl = (url: string) => {
     try {
@@ -88,7 +90,7 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
     if (slides.length === 0) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(timer);
   }, [slides.length]);
@@ -131,7 +133,7 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
               <video
                 ref={(el) => {
                   if (el && index === currentSlide) {
-                    el.currentTime = 0; // Reset to start
+                    el.currentTime = 0;
                     el.play().catch(e => console.log('Autoplay prevented:', e));
                   } else if (el) {
                     el.pause();
@@ -140,8 +142,9 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
                 src={slide.videoUrl}
                 autoPlay
                 loop
-                muted
+                muted={isMuted}
                 playsInline
+                preload="auto"
                 className="absolute inset-0 w-full h-full object-cover"
                 poster={slide.image}
               />
@@ -153,6 +156,20 @@ export function HeroCarousel({ onNavigate }: HeroCarouselProps) {
             )}
             <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/40" />
           </div>
+
+          {/* Sound Toggle for Video Slides */}
+          {index === currentSlide && slide.videoType === 'upload' && slide.videoUrl && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMuted(!isMuted);
+              }}
+              className="absolute bottom-8 right-8 z-20 p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-110"
+              title={isMuted ? "Unmute Video" : "Mute Video"}
+            >
+              {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+            </button>
+          )}
 
           {/* Content */}
           <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center">

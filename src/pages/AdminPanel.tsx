@@ -3159,6 +3159,17 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                                     placeholder="https://www.youtube.com/watch?v=..."
                                     className="bg-white"
                                   />
+                                  {carouselForm.videoType === 'youtube' && carouselForm.videoUrl && (carouselForm.videoUrl.includes('v=') || carouselForm.videoUrl.includes('youtu.be')) && (
+                                    <div className="mt-4 rounded-lg overflow-hidden h-40 bg-black relative">
+                                      <iframe
+                                        src={`https://www.youtube.com/embed/${carouselForm.videoUrl.split('v=')[1]?.split('&')[0] || carouselForm.videoUrl.split('youtu.be/')[1]?.split('?')[0]}`}
+                                        className="w-full h-full object-cover"
+                                        title="Preview"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                      />
+                                    </div>
+                                  )}
                                   <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
                                     <Activity className="w-3 h-3" />
                                     Video will play silently in the background
@@ -3183,6 +3194,21 @@ export function AdminPanel({ onNavigate }: AdminPanelProps) {
                                     }}
                                     className="cursor-pointer bg-white file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                   />
+
+                                  {/* Preview for uploaded file or existing URL */}
+                                  {(carouselForm.videoFile || (carouselForm.videoType === 'upload' && carouselForm.videoUrl)) && (
+                                    <div className="mt-4 rounded-lg overflow-hidden h-40 bg-black relative border-2 border-blue-200">
+                                      <video
+                                        src={carouselForm.videoFile ? URL.createObjectURL(carouselForm.videoFile) : carouselForm.videoUrl}
+                                        className="w-full h-full object-contain"
+                                        controls
+                                      />
+                                      <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-[10px] text-white font-bold">
+                                        PREVIEW
+                                      </div>
+                                    </div>
+                                  )}
+
                                   {carouselForm.videoType === 'upload' && carouselForm.videoUrl && !carouselForm.videoFile && (
                                     <div className="mt-2 text-xs text-green-600 flex items-center gap-1 bg-green-50 p-2 rounded">
                                       <CheckCircle className="w-3 h-3" />
