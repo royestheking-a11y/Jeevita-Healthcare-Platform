@@ -3,6 +3,7 @@ import { HeroCarousel } from '../components/HeroCarousel';
 import { DoctorCard } from '../components/DoctorCard';
 import { MedicineCard } from '../components/MedicineCard';
 import { HospitalCard } from '../components/HospitalCard';
+import { EmergencySection } from '../components/EmergencySection';
 import { PrescriptionUploadSection } from '../components/PrescriptionUploadSection';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useData } from '../contexts/DataContext';
@@ -53,6 +54,9 @@ export function HomePage({ onNavigate }: HomePageProps) {
           ))}
         </div>
       </section>
+
+      {/* Emergency Section */}
+      <EmergencySection onNavigate={onNavigate} />
 
       {/* Prescription Upload Section */}
       <PrescriptionUploadSection onNavigate={onNavigate} />

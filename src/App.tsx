@@ -24,6 +24,8 @@ import { AdminLoginPage } from './pages/AdminLoginPage';
 import { DoctorProfilePage } from './pages/DoctorProfilePage';
 import { MedicineDetailsPage } from './pages/MedicineDetailsPage';
 import { HospitalDetailsPage } from './pages/HospitalDetailsPage';
+import { EmergencyPage } from './pages/EmergencyPage';
+import { NearestHospitalPage } from './pages/NearestHospitalPage';
 import { AboutUsPage } from './pages/AboutUsPage';
 import { ContactUsPage } from './pages/ContactUsPage';
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
@@ -192,6 +194,7 @@ function AppContent() {
         <Route path="/doctor-profile/:doctorId" element={<PageWrapper Component={DoctorProfilePage} />} />
         <Route path="/medicine-details/:medicineId" element={<PageWrapper Component={MedicineDetailsPage} />} />
         <Route path="/hospital-details/:hospitalId" element={<PageWrapper Component={HospitalDetailsPage} />} />
+        <Route path="/emergency" element={<PageWrapper Component={EmergencyPage} />} />
         <Route path="/booking/:doctorId" element={<PageWrapper Component={BookingPage} />} />
 
         {/* User routes */}
@@ -215,6 +218,8 @@ function AppContent() {
             </AdminRoute>
           }
         />
+
+        <Route path="/near-hospitals" element={<PageWrapper Component={NearestHospitalPage} />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

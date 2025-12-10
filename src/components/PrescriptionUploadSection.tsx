@@ -375,7 +375,7 @@ export function PrescriptionUploadSection({ onNavigate }: PrescriptionUploadSect
 
                             <Button
                               onClick={() => handleAddToCart(item)}
-                              className="w-full mt-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-amber-200 shadow-md rounded-lg h-11 flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-300 transform hover:scale-[1.02]"
+                              className="w-full mt-4 !bg-gradient-to-r !from-amber-500 !to-orange-500 hover:!from-amber-600 hover:!to-orange-600 text-white shadow-amber-200 shadow-md rounded-lg h-11 flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-300 transform hover:scale-[1.02] border-none"
                             >
                               <ShoppingCart className="h-4 w-4" />
                               Add to Cart

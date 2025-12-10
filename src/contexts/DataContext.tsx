@@ -21,6 +21,21 @@ export interface Doctor {
   fee: number;
   availability: string[];
   timeSlots: string[];
+  isEmergencyAvailable?: boolean;
+}
+
+export interface EmergencyRequest {
+  id: string;
+  patientName: string;
+  age: string;
+  symptoms: string;
+  duration: string;
+  severity: 'low' | 'medium' | 'high';
+  location: string;
+  status: 'pending' | 'analyzed' | 'connected';
+  assignedDoctorId?: string;
+  aiAnalysis?: any;
+  timestamp: string;
 }
 
 export interface Medicine {
@@ -244,8 +259,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Initialize loading based on cache availability. 
   // If we have cached data for critical public sections, we don't need to show a full loader.
-  const hasCachedData = doctors.length > 0 || medicines.length > 0 || hospitals.length > 0 || carouselSlides.length > 0;
-  const [loading, setLoading] = useState(!hasCachedData);
+  const hasCachedData = true; // FORCE FOR DEBUG: doctors.length > 0 || medicines.length > 0 || hospitals.length > 0 || carouselSlides.length > 0;
+  const [loading, setLoading] = useState(false); // FORCE FALSE
 
   const { user } = useAuth(); // Import useAuth to check login status
 
@@ -677,3 +692,5 @@ export function useData() {
   }
   return context;
 }
+
+
