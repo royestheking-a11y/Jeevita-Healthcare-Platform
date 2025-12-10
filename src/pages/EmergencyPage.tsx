@@ -175,8 +175,8 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                     Format as JSON: { "assessment": "string", "causes": ["string"], "advice": ["string"] }`;
 
                 try {
-                    // Try 'gemini-1.5-flash-001' (specific version) -> Fallback to 'gemini-pro' (universal)
-                    const result = await generateWithFallback("gemini-1.5-flash-001", "gemini-pro", prompt);
+                    // Try 'gemini-1.5-flash' (Standard) -> Fallback 'gemini-1.5-pro'
+                    const result = await generateWithFallback("gemini-1.5-flash", "gemini-1.5-pro", prompt);
                     const response = await result.response;
                     const text = response.text();
                     // Basic cleanup to extract JSON if markdown blocks are present
@@ -186,6 +186,8 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                     console.error("Gemini Error:", error);
                     if (error.message?.includes('API key')) {
                         toast.error("Invalid API Key configuration");
+                    } else if (error.message?.includes('404')) {
+                        toast.error("Error: Please enable 'Generative Language API' in your Google Cloud Console.");
                     } else {
                         toast.error("AI Service Unavailable. Using offline mode.");
                     }
@@ -225,12 +227,11 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         const newHistory = [...chatHistory, userMsg];
-        setChatHistory(newHistory);
         setChatInput('');
         setLoading(true);
 
         try {
-            // STRATEGY: Check multiple environment variables
+            // Improved Key Selection Logging
             const keys = [
                 import.meta.env.VITE_GEMINI_API_KEY,
                 import.meta.env.VITE_GEMINI_API_KEY_2,
@@ -238,14 +239,17 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
             ];
 
             const validKeys = keys
-                .filter(k => k && k.length > 10)
+                .filter(k => k && typeof k === 'string' && k.length > 20) // API keys are usually distinctively long
                 .flatMap(k => k?.includes(',') ? k.split(',') : [k])
                 .map(k => k?.trim())
-                .filter(k => k && k.length > 10);
+                .filter(k => k && k.length > 20);
 
-            const apiKey = validKeys.length > 0 ? validKeys[Math.floor(Math.random() * validKeys.length)] : null;
+            let apiKey = validKeys.length > 0 ? validKeys[Math.floor(Math.random() * validKeys.length)] : null;
 
             if (apiKey) {
+                // Debug log (masked)
+                console.log("Using API Key:", apiKey.substring(0, 8) + "...");
+
                 const genAI = new GoogleGenerativeAI(apiKey);
 
                 // Fallback mechanism for Chat
@@ -254,7 +258,9 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                         const model = genAI.getGenerativeModel({ model: modelName });
                         return await model.generateContent(promptText);
                     } catch (error: any) {
+                        console.warn(`Model ${modelName} failed:`, error.message);
                         if (error.message?.includes('404') || error.message?.includes('not found')) {
+                            console.log(`Switching to fallback model: ${fallbackModelName}`);
                             const fallbackModel = genAI.getGenerativeModel({ model: fallbackModelName });
                             return await fallbackModel.generateContent(promptText);
                         }
@@ -274,8 +280,8 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                 
                 AI Doctor: (Reply naturally, keep it concise, reassuring, and medically sound. If serious, urge to see a doctor immediately.)`;
 
-                // Try 'gemini-1.5-flash-001' -> Fallback 'gemini-pro'
-                const result = await generateWithFallback("gemini-1.5-flash-001", "gemini-pro", fullPrompt);
+                // Try 'gemini-1.5-flash' (Standard) -> Fallback 'gemini-1.5-pro'
+                const result = await generateWithFallback("gemini-1.5-flash", "gemini-1.5-pro", fullPrompt);
                 const response = await result.response;
                 const text = response.text();
 
@@ -285,19 +291,25 @@ export function EmergencyPage({ onNavigate }: { onNavigate: (page: string, data?
                     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 }]);
             } else {
+                console.error("No valid API keys found in environment variables.");
+                toast.error("System Configuration Error: No valid AI API Key found.");
                 // Fallback Mock
                 setTimeout(() => {
                     setChatHistory([...newHistory, {
                         role: 'model',
-                        parts: "I'm having trouble connecting to the network right now. Given your symptoms, I strongly recommend consulting a specialist immediately. Shall I help you find one?",
+                        parts: "I'm check connectivity. Please check your network or try again later. (API Key Missing)",
                         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     }]);
                 }, 1000);
             }
         } catch (error: any) {
             console.error("Chat Error:", error);
-            const errorMsg = error.message || "Unknown error";
-            toast.error(`Analysis failed: ${errorMsg}`);
+            if (error.message?.includes('404')) {
+                toast.error("Error: Please enable 'Generative Language API' in your Google Cloud Console.", { duration: 6000 });
+            } else {
+                const errorMsg = error.message || "Unknown error";
+                toast.error(`Analysis failed: ${errorMsg}`);
+            }
         } finally {
             setLoading(false);
         }
