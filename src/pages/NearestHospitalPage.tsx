@@ -12,6 +12,13 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 // Access Token
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
+// Debug Log for Vercel troubleshooting
+console.log("Mapbox Configuration:", {
+    hasToken: !!MAPBOX_TOKEN,
+    tokenLength: MAPBOX_TOKEN?.length || 0,
+    envMode: import.meta.env.MODE
+});
+
 export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string) => void }) {
     const mapRef = useRef<MapRef>(null);
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
