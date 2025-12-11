@@ -127,6 +127,12 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
         }
     }, [userLocation, selectedHospital, isNavigating, hasArrived]);
 
+    // Calculate Bounding Box for Search (approx 50km radius)
+    const getBbox = (lat: number, lng: number) => {
+        const delta = 0.5; // roughly 50km
+        return `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`;
+    };
+
     // Fetch Nearby Hospitals using Mapbox Geocoding API
     const fetchNearbyHospitals = async (lat: number, lng: number) => {
         if (!MAPBOX_TOKEN) {
@@ -137,8 +143,10 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
 
         console.log("Fetching hospitals for:", lat, lng);
 
+        const bbox = getBbox(lat, lng);
         const searchQuery = "hospital";
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${searchQuery}.json?proximity=${lng},${lat}&limit=10&access_token=${MAPBOX_TOKEN}`;
+        // Use 'bbox' to strictly limit results to the user's area
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${searchQuery}.json?bbox=${bbox}&limit=10&access_token=${MAPBOX_TOKEN}`;
 
         try {
             const res = await fetch(url);
@@ -156,8 +164,8 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                 toast.success(`Found ${data.features.length} nearby hospitals`);
             } else {
                 console.warn("No hospitals found. Trying clinics...");
-                // Fallback: Clinic Search
-                const clinicUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/clinic.json?proximity=${lng},${lat}&limit=10&access_token=${MAPBOX_TOKEN}`;
+                // Fallback: Clinic Search with bbox
+                const clinicUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/clinic.json?bbox=${bbox}&limit=10&access_token=${MAPBOX_TOKEN}`;
                 const clinicRes = await fetch(clinicUrl);
                 const clinicData = await clinicRes.json();
 
@@ -180,8 +188,11 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
         }
     };
 
+    const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+
     const calculateRoute = async (hospital: any) => {
         if (!userLocation || !MAPBOX_TOKEN) return;
+        setIsCalculatingRoute(true);
         const start = `${userLocation.lng},${userLocation.lat}`;
         const end = `${hospital.lng},${hospital.lat}`;
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start};${end}?geometries=geojson&access_token=${MAPBOX_TOKEN}`;
@@ -197,9 +208,14 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                     duration: `${Math.round(route.duration / 60)} mins`,
                     distanceVal: route.distance
                 });
+            } else {
+                toast.error("Could not calculate route to this location.");
             }
         } catch (e) {
             console.error(e);
+            toast.error("Failed to calculate route.");
+        } finally {
+            setIsCalculatingRoute(false);
         }
     };
 
@@ -255,9 +271,9 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                     <Map
                         ref={mapRef}
                         {...viewState}
-                        onMove={evt => !isNavigating && setViewState(evt.viewState)} // Disable manual move if navigating (optional, usually good to allow pan but snap back)
+                        onMove={evt => !isNavigating && setViewState(evt.viewState)}
                         style={{ width: '100%', height: '100%' }}
-                        mapStyle="mapbox://styles/mapbox/streets-v12" // Light mode
+                        mapStyle="mapbox://styles/mapbox/streets-v12"
                         mapboxAccessToken={MAPBOX_TOKEN}
                         pitchWithRotate={true}
                         dragRotate={true}
@@ -269,12 +285,9 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                         {userLocation && (
                             <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="center">
                                 <div className="relative flex items-center justify-center group">
-                                    {/* Pulse Ring */}
                                     <div className="absolute h-20 w-20 bg-orange-500/20 rounded-full animate-ping delay-75"></div>
                                     <div className="absolute h-12 w-12 bg-orange-500/40 rounded-full animate-pulse"></div>
-                                    {/* Core */}
                                     <div className="relative h-6 w-6 bg-orange-600 rounded-full border-2 border-white shadow-[0_0_15px_rgba(249,115,22,0.6)] z-20">
-                                        {/* Direction Cone */}
                                         {isNavigating && (
                                             <div
                                                 className="absolute -top-10 -left-[18px] w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-b-[50px] border-b-orange-500/50 blur-[2px]"
@@ -304,9 +317,9 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                                         mapRef.current?.flyTo({ center: [h.lng, h.lat], zoom: 16, pitch: 50, duration: 1500 });
                                     }}
                                 >
-                                    {/* Medical Cross Icon Background */}
-                                    <div className={`h-12 w-12 rounded-full flex items-center justify-center shadow-xl border-3 ${selectedHospital?.id === h.id ? 'bg-red-600 border-white shadow-red-500/50 animate-bounce' : 'bg-white border-red-600 hover:shadow-red-500/30'}`}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={selectedHospital?.id === h.id ? 'text-white' : 'text-red-600'}>
+                                    {/* Medical Cross Icon Background REMOVED JUMPING */}
+                                    <div className={`h-8 w-8 rounded-full flex items-center justify-center shadow-md border-2 ${selectedHospital?.id === h.id ? 'bg-red-600 border-white shadow-red-500/50' : 'bg-white border-red-600 hover:shadow-red-500/30'}`}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={selectedHospital?.id === h.id ? 'text-white' : 'text-red-600'}>
                                             <path d="M5 12h14" /><path d="M12 5v14" />
                                         </svg>
                                     </div>
@@ -400,9 +413,17 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                                     <Button
                                         className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-12 shadow-md transition-all hover:scale-105"
                                         onClick={startNavigation}
-                                        disabled={!routeGeoJSON}
+                                        disabled={!routeGeoJSON || isCalculatingRoute}
                                     >
-                                        <Navigation className="mr-2 h-5 w-5" /> GO NOW
+                                        {isCalculatingRoute ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Calculating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Navigation className="mr-2 h-5 w-5" /> GO NOW
+                                            </>
+                                        )}
                                     </Button>
                                 ) : (
                                     <Button
@@ -421,6 +442,13 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                                 >
                                     Cancel
                                 </Button>
+
+                                {isCalculatingRoute && (
+                                    <div className="col-span-2 text-center text-xs text-orange-500 animate-pulse">
+                                        Calculating optimal route...
+                                    </div>
+                                )}
+
                             </div>
                         </CardContent>
                     </Card>
