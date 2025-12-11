@@ -127,13 +127,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
         }
     }, [userLocation, selectedHospital, isNavigating, hasArrived]);
 
-    // Calculate Bounding Box for Search (approx 50km radius)
-    const getBbox = (lat: number, lng: number) => {
-        const delta = 0.5; // roughly 50km
-        return `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`;
-    };
-
-    // Fetch Nearby Hospitals using Mapbox Geocoding API (Multi-pass)
+    // Fetch Nearby Hospitals using Mapbox Geocoding API (Multi-pass with Proximity)
     const fetchNearbyHospitals = async (lat: number, lng: number) => {
         if (!MAPBOX_TOKEN) {
             console.warn("No Mapbox Token. Skipping API call.");
@@ -142,15 +136,16 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
         }
 
         console.log("Fetching hospitals for:", lat, lng);
-        const bbox = getBbox(lat, lng);
 
         // Search for multiple terms to maximize coverage
-        const searchTerms = ['hospital', 'medical', 'clinic', 'doctor'];
+        // We use 'proximity' to bias results to the user's location,
+        // then filter by distance to avoid "wrong country" results.
+        const searchTerms = ['hospital', 'clinic', 'medical', 'doctor', 'healthcare'];
 
         try {
-            // Run all searches in parallel
+            // Run all searches in parallel with Proximity
             const promises = searchTerms.map(term =>
-                fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${term}.json?bbox=${bbox}&limit=10&access_token=${MAPBOX_TOKEN}`)
+                fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${term}.json?proximity=${lng},${lat}&limit=10&access_token=${MAPBOX_TOKEN}`)
                     .then(res => res.json())
             );
 
@@ -164,30 +159,41 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                 if (data.features) {
                     data.features.forEach((f: any) => {
                         if (!seenIds.has(f.id)) {
-                            seenIds.add(f.id);
-                            allFeatures.push({
-                                id: f.id,
-                                name: f.text,
-                                address: f.properties.address || f.place_name,
-                                lng: f.center[0],
-                                lat: f.center[1]
-                            });
+                            // Calculate distance immediately
+                            const distKm = getDistanceKm(lat, lng, f.center[1], f.center[0]);
+
+                            // FILTER: Only accept results within 50km
+                            if (distKm <= 50) {
+                                seenIds.add(f.id);
+                                allFeatures.push({
+                                    id: f.id,
+                                    name: f.text,
+                                    address: f.properties.address || f.place_name,
+                                    lng: f.center[0],
+                                    lat: f.center[1],
+                                    distance: distKm // Store for sorting
+                                });
+                            }
                         }
                     });
                 }
             });
 
-            console.log(`Total found: ${allFeatures.length} from [${searchTerms.join(', ')}]`);
+            // Sort by distance (closest first)
+            allFeatures.sort((a, b) => a.distance - b.distance);
 
-            if (allFeatures.length > 0) {
-                // Sort by distance (optional, but good for UX)
-                // Since we have user location, we can sort roughly if needed, 
-                // but Mapbox usually returns relevant results first.
-                // We'll trust Mapbox relevance + unique set.
-                setHospitals(allFeatures);
-                toast.success(`Found ${allFeatures.length} medical facilities nearby`);
+            // Limit to top 20 relevant results
+            const finalResults = allFeatures.slice(0, 20);
+
+            console.log(`Total local found: ${finalResults.length}`);
+
+            if (finalResults.length > 0) {
+                setHospitals(finalResults);
+                toast.success(`Found ${finalResults.length} medical facilities nearby`);
             } else {
-                toast.error("No medical facilities found in this area. Try zooming out.");
+                // If we found 0 results after filtering, it means Mapbox has nothing within 50km.
+                // We'll try to visually warn the user, but we won't show fake data.
+                toast.error("No hospitals found within 50km. Map data may be limited in this area.");
             }
 
         } catch (e) {
