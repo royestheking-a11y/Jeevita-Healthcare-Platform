@@ -3,7 +3,7 @@ import Map, { Marker, Popup, Source, Layer, NavigationControl, GeolocateControl,
 import mapboxgl from 'mapbox-gl';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
-import { ArrowLeft, Navigation, MapPin, Clock, AlertTriangle, Loader2, Compass, Ban, Trophy } from 'lucide-react';
+import { ArrowLeft, Navigation, MapPin, Clock, AlertTriangle, Loader2, Compass, Ban, Trophy, ChevronDown, ChevronUp, LocateFixed } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Ensure Mapbox CSS is included
@@ -54,6 +54,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
 
     // Navigation Modes
     const [isNavigating, setIsNavigating] = useState(false);
+    const [isPanelMinimized, setIsPanelMinimized] = useState(false);
     const [hasArrived, setHasArrived] = useState(false);
 
     // 1. Live Tracking Mechanism
@@ -223,6 +224,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
     const startNavigation = () => {
         setIsNavigating(true);
         setHasArrived(false);
+        setIsPanelMinimized(true); // Auto-minimize panel on mobile
         toast.info("Navigation Started");
 
         mapRef.current?.flyTo({
@@ -234,8 +236,21 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
         });
     };
 
+    const recenterMap = () => {
+        if (userLocation) {
+            mapRef.current?.flyTo({
+                center: [userLocation.lng, userLocation.lat],
+                zoom: 17,
+                pitch: 60,
+                bearing: userLocation.heading || 0,
+                duration: 1000
+            });
+        }
+    };
+
     const stopNavigation = () => {
         setIsNavigating(false);
+        setIsPanelMinimized(false);
         setViewState(prev => ({ ...prev, pitch: 0, zoom: 14, bearing: 0 })); // Reset view
     };
 
@@ -252,9 +267,19 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                 </Button>
 
                 {isNavigating && (
-                    <div className="bg-orange-600 text-white px-6 py-2 rounded-full shadow-lg shadow-orange-500/20 animate-pulse font-bold flex items-center gap-2">
-                        <Navigation className="h-5 w-5 fill-current" />
-                        NAVIGATING
+                    <div className="flex items-center gap-2 pointer-events-auto">
+                        <div className="bg-orange-600 text-white px-4 md:px-6 py-1.5 md:py-2 rounded-full shadow-lg shadow-orange-500/20 animate-pulse font-bold flex items-center gap-2 text-sm md:text-base">
+                            <Navigation className="h-4 w-4 md:h-5 md:w-5 fill-current" />
+                            <span className="hidden sm:inline">NAVIGATING</span>
+                        </div>
+                        <Button
+                            size="sm"
+                            className="bg-white/90 hover:bg-white border-orange-200 text-orange-600 rounded-full h-8 w-8 md:h-10 md:w-10 p-0 shadow-lg"
+                            onClick={recenterMap}
+                            title="Recenter on my location"
+                        >
+                            <LocateFixed className="h-4 w-4" />
+                        </Button>
                     </div>
                 )}
             </div>
@@ -272,7 +297,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                     <Map
                         ref={mapRef}
                         {...viewState}
-                        onMove={evt => !isNavigating && setViewState(evt.viewState)}
+                        onMove={evt => setViewState(evt.viewState)} // Allow interaction even during navigation
                         style={{ width: '100%', height: '100%' }}
                         mapStyle="mapbox://styles/mapbox/streets-v12"
                         mapboxAccessToken={MAPBOX_TOKEN}
@@ -319,8 +344,8 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                                     }}
                                 >
                                     {/* Medical Cross Icon Background REMOVED JUMPING */}
-                                    <div className={`h-8 w-8 rounded-full flex items-center justify-center shadow-md border-2 ${selectedHospital?.id === h.id ? 'bg-red-600 border-white shadow-red-500/50' : 'bg-white border-red-600 hover:shadow-red-500/30'}`}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={selectedHospital?.id === h.id ? 'text-white' : 'text-red-600'}>
+                                    <div className={`h-10 w-10 md:h-12 md:w-12 rounded-full flex items-center justify-center shadow-md border-2 ${selectedHospital?.id === h.id ? 'bg-red-600 border-white shadow-red-500/50' : 'bg-white border-red-600 hover:shadow-red-500/30'}`}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={selectedHospital?.id === h.id ? 'text-white' : 'text-red-600'}>
                                             <path d="M5 12h14" /><path d="M12 5v14" />
                                         </svg>
                                     </div>
@@ -376,82 +401,103 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                 </div>
             )}
 
-            {/* --- Bottom Navigation Panel (Light Theme) --- */}
+            {/* --- Bottom Navigation Panel (Collapsible on Mobile) --- */}
             {selectedHospital && !hasArrived && (
-                <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-8 md:w-[400px] z-40">
+                <div className={`absolute left-2 right-2 md:left-auto md:right-8 md:w-[400px] z-40 transition-all duration-300 ${isPanelMinimized ? 'bottom-2' : 'bottom-4'}`}>
                     <Card className="bg-white/95 backdrop-blur-md border-orange-100 text-slate-900 shadow-2xl overflow-hidden rounded-2xl">
                         {/* Progress Bar (Decoration) */}
                         <div className="h-1 bg-orange-100 w-full">
                             <div className="h-full bg-orange-500 w-1/3 animate-[shimmer_2s_infinite]"></div>
                         </div>
 
-                        <CardHeader className="pb-2 pt-4 flex flex-row justify-between items-start gap-4">
-                            <div>
-                                <h3 className="text-xl font-bold leading-none mb-2">{selectedHospital.name}</h3>
-                                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Hospital • {routeInfo?.distance || 'Nearby'}</p>
-                            </div>
-                            <div className="bg-orange-50 p-2 rounded-lg">
-                                <Compass className="h-6 w-6 text-orange-500" />
-                            </div>
-                        </CardHeader>
+                        {/* Minimize Button (Mobile Only) */}
+                        {isNavigating && (
+                            <button
+                                className="md:hidden absolute top-2 right-2 z-10 bg-orange-100 text-orange-600 rounded-full p-1 hover:bg-orange-200"
+                                onClick={() => setIsPanelMinimized(!isPanelMinimized)}
+                            >
+                                {isPanelMinimized ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </button>
+                        )}
 
-                        <CardContent className="pt-2">
-                            {/* Route Stats */}
-                            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl mb-4 border border-slate-100">
-                                <div className="text-center w-1/2 border-r border-slate-200">
-                                    <p className="text-xs text-slate-400 uppercase font-bold">Distance</p>
-                                    <p className="text-xl font-black text-slate-900">{routeInfo?.distance || '--'}</p>
-                                </div>
-                                <div className="text-center w-1/2">
-                                    <p className="text-xs text-slate-400 uppercase font-bold">Est. Time</p>
-                                    <p className="text-xl font-black text-orange-600">{routeInfo?.duration || '--'}</p>
-                                </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="grid grid-cols-2 gap-3">
-                                {!isNavigating ? (
-                                    <Button
-                                        className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-12 shadow-md transition-all hover:scale-105"
-                                        onClick={startNavigation}
-                                        disabled={!routeGeoJSON || isCalculatingRoute}
-                                    >
-                                        {isCalculatingRoute ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Calculating...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Navigation className="mr-2 h-5 w-5" /> GO NOW
-                                            </>
-                                        )}
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        variant="destructive"
-                                        className="bg-red-50 hover:bg-red-100 text-red-600 font-bold h-12 border border-red-200"
-                                        onClick={stopNavigation}
-                                    >
-                                        STOP
-                                    </Button>
-                                )}
-
-                                <Button
-                                    variant="secondary"
-                                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold h-12 border border-slate-200"
-                                    onClick={() => setSelectedHospital(null)}
-                                >
-                                    Cancel
-                                </Button>
-
-                                {isCalculatingRoute && (
-                                    <div className="col-span-2 text-center text-xs text-orange-500 animate-pulse">
-                                        Calculating optimal route...
+                        {!isPanelMinimized ? (
+                            <>
+                                <CardHeader className="pb-2 pt-3 md:pt-4 flex flex-row justify-between items-start gap-2 md:gap-4">
+                                    <div>
+                                        <h3 className="text-base md:text-xl font-bold leading-none mb-1 md:mb-2">{selectedHospital.name}</h3>
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Hospital • {routeInfo?.distance || 'Nearby'}</p>
                                     </div>
-                                )}
+                                    <div className="bg-orange-50 p-2 rounded-lg">
+                                        <Compass className="h-5 w-5 md:h-6 md:w-6 text-orange-500" />
+                                    </div>
+                                </CardHeader>
 
+                                <CardContent className="pt-2 pb-3 md:pb-4">
+                                    {/* Route Stats */}
+                                    <div className="flex items-center justify-between bg-slate-50 p-2 md:p-3 rounded-xl mb-3 md:mb-4 border border-slate-100">
+                                        <div className="text-center w-1/2 border-r border-slate-200">
+                                            <p className="text-xs text-slate-400 uppercase font-bold">Distance</p>
+                                            <p className="text-lg md:text-xl font-black text-slate-900">{routeInfo?.distance || '--'}</p>
+                                        </div>
+                                        <div className="text-center w-1/2">
+                                            <p className="text-xs text-slate-400 uppercase font-bold">Est. Time</p>
+                                            <p className="text-lg md:text-xl font-black text-orange-600">{routeInfo?.duration || '--'}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="grid grid-cols-2 gap-2 md:gap-3">
+                                        {!isNavigating ? (
+                                            <Button
+                                                className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-10 md:h-12 text-sm md:text-base shadow-md transition-all hover:scale-105"
+                                                onClick={startNavigation}
+                                                disabled={!routeGeoJSON || isCalculatingRoute}
+                                            >
+                                                {isCalculatingRoute ? (
+                                                    <>
+                                                        <Loader2 className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4 animate-spin" /> <span className="text-xs md:text-base">Calc...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Navigation className="mr-1 md:mr-2 h-4 w-4 md:h-5 md:w-5" /> GO NOW
+                                                    </>
+                                                )}
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="destructive"
+                                                className="bg-red-50 hover:bg-red-100 text-red-600 font-bold h-10 md:h-12 text-sm md:text-base border border-red-200"
+                                                onClick={stopNavigation}
+                                            >
+                                                STOP
+                                            </Button>
+                                        )}
+
+                                        <Button
+                                            variant="secondary"
+                                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold h-10 md:h-12 text-sm md:text-base border border-slate-200"
+                                            onClick={() => setSelectedHospital(null)}
+                                        >
+                                            Cancel
+                                        </Button>
+
+                                        {isCalculatingRoute && (
+                                            <div className="col-span-2 text-center text-xs text-orange-500 animate-pulse">
+                                                Calculating optimal route...
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </>
+                        ) : (
+                            <div className="p-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Compass className="h-4 w-4 text-orange-500" />
+                                    <span className="text-sm font-bold text-slate-900">{selectedHospital.name}</span>
+                                </div>
+                                <span className="text-xs text-orange-600 font-bold">{routeInfo?.distance}</span>
                             </div>
-                        </CardContent>
+                        )}
                     </Card>
                 </div>
             )}
