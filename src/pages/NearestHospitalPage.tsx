@@ -127,13 +127,20 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
         }
     }, [userLocation, selectedHospital, isNavigating, hasArrived]);
 
+    // Fetch Nearby Hospitals using Mapbox Geocoding API
     const fetchNearbyHospitals = async (lat: number, lng: number) => {
         if (!MAPBOX_TOKEN) return;
+
+        console.log("Fetching hospitals for:", lat, lng);
+        // Using 'hospital' query with proximity to user location
         const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/hospital.json?proximity=${lng},${lat}&types=poi&limit=10&access_token=${MAPBOX_TOKEN}`;
+
         try {
             const res = await fetch(url);
             const data = await res.json();
-            if (data.features) {
+            console.log("Hospital Data:", data);
+
+            if (data.features && data.features.length > 0) {
                 setHospitals(data.features.map((f: any) => ({
                     id: f.id,
                     name: f.text,
@@ -141,9 +148,14 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                     lng: f.center[0],
                     lat: f.center[1]
                 })));
+                toast.success(`Found ${data.features.length} nearby hospitals`);
+            } else {
+                toast.error("No hospitals found nearby.");
+                console.warn("No features in response:", data);
             }
         } catch (e) {
-            console.error(e);
+            console.error("Fetch Error:", e);
+            toast.error("Failed to load hospitals.");
         }
     };
 
@@ -253,23 +265,33 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                             </Marker>
                         )}
 
-                        {/* --- Hospitals --- */}
+                        {/* --- Hospitals (Red Plus Markers) --- */}
                         {hospitals.map(h => (
                             <Marker
                                 key={h.id}
                                 longitude={h.lng}
                                 latitude={h.lat}
-                                anchor="bottom"
+                                anchor="center"
                                 onClick={(e: any) => {
                                     e.originalEvent.stopPropagation();
                                     setSelectedHospital(h);
                                     calculateRoute(h);
-                                    // Smooth fly to
-                                    mapRef.current?.flyTo({ center: [h.lng, h.lat], zoom: 15, pitch: 45, duration: 1500 });
+                                    mapRef.current?.flyTo({ center: [h.lng, h.lat], zoom: 16, pitch: 50, duration: 1500 });
                                 }}
                             >
-                                <div className={`relative transition-all duration-500 ${selectedHospital?.id === h.id ? 'scale-125 z-50' : 'scale-100 hover:scale-110'}`}>
-                                    <MapPin className={`h-8 w-8 drop-shadow-lg ${selectedHospital?.id === h.id ? 'text-orange-500 fill-orange-500 animate-bounce' : 'text-slate-400 fill-slate-800'}`} />
+                                <div className={`relative transition-all duration-300 cursor-pointer ${selectedHospital?.id === h.id ? 'scale-125 z-50' : 'scale-100 hover:scale-110'}`}>
+                                    {/* Medical Cross Icon Background */}
+                                    <div className={`h-10 w-10 rounded-full flex items-center justify-center shadow-lg border-2 ${selectedHospital?.id === h.id ? 'bg-red-600 border-white shadow-red-500/50' : 'bg-white border-red-600'}`}>
+                                        {/* Plus SVG directly to ensure visibility */}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={selectedHospital?.id === h.id ? 'text-white' : 'text-red-600'}>
+                                            <path d="M5 12h14" /><path d="M12 5v14" />
+                                        </svg>
+                                    </div>
+
+                                    {/* Label on Hover */}
+                                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-1 rounded text-xs text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                                        {h.name}
+                                    </div>
                                 </div>
                             </Marker>
                         ))}
