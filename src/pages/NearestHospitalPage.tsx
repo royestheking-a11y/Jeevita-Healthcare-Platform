@@ -127,78 +127,65 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
         }
     }, [userLocation, selectedHospital, isNavigating, hasArrived]);
 
-    // Fetch Nearby Hospitals using Mapbox Geocoding API (Multi-pass with Proximity)
+    // Fetch Nearby Hospitals using OpenStreetMap Overpass API
     const fetchNearbyHospitals = async (lat: number, lng: number) => {
-        if (!MAPBOX_TOKEN) {
-            console.warn("No Mapbox Token. Skipping API call.");
-            toast.error("Map configuration error. Please contact support.");
-            return;
-        }
+        console.log("Fetching hospitals from OpenStreetMap for:", lat, lng);
 
-        console.log("Fetching hospitals for:", lat, lng);
+        // Overpass Query: Find hospitals, clinics, doctors within 10km radius
+        const query = `
+            [out:json][timeout:25];
+            (
+                node["amenity"="hospital"](around:10000,${lat},${lng});
+                way["amenity"="hospital"](around:10000,${lat},${lng});
+                node["amenity"="clinic"](around:10000,${lat},${lng});
+                way["amenity"="clinic"](around:10000,${lat},${lng});
+                node["amenity"="doctors"](around:10000,${lat},${lng});
+                way["amenity"="doctors"](around:10000,${lat},${lng});
+                node["healthcare"](around:10000,${lat},${lng});
+                way["healthcare"](around:10000,${lat},${lng});
+            );
+            out center;
+        `;
 
-        // Search for multiple terms to maximize coverage
-        // We use 'proximity' to bias results to the user's location,
-        // then filter by distance to avoid "wrong country" results.
-        const searchTerms = ['hospital', 'clinic', 'medical', 'doctor', 'healthcare'];
+        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
 
         try {
-            // Run all searches in parallel with Proximity
-            const promises = searchTerms.map(term =>
-                fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${term}.json?proximity=${lng},${lat}&limit=10&access_token=${MAPBOX_TOKEN}`)
-                    .then(res => res.json())
-            );
+            const res = await fetch(url);
+            const data = await res.json();
 
-            const results = await Promise.all(promises);
+            console.log("Overpass API Response:", data);
 
-            // Aggregating results
-            const allFeatures: any[] = [];
-            const seenIds = new Set();
+            if (data.elements && data.elements.length > 0) {
+                const hospitalList = data.elements.map((el: any) => {
+                    const hospitalLat = el.lat || el.center?.lat;
+                    const hospitalLng = el.lon || el.center?.lon;
+                    const distKm = getDistanceKm(lat, lng, hospitalLat, hospitalLng);
 
-            results.forEach(data => {
-                if (data.features) {
-                    data.features.forEach((f: any) => {
-                        if (!seenIds.has(f.id)) {
-                            // Calculate distance immediately
-                            const distKm = getDistanceKm(lat, lng, f.center[1], f.center[0]);
+                    return {
+                        id: el.id,
+                        name: el.tags?.name || el.tags?.["name:en"] || "Unnamed Medical Facility",
+                        address: el.tags?.["addr:full"] || el.tags?.["addr:street"] || "Address not available",
+                        lat: hospitalLat,
+                        lng: hospitalLng,
+                        distance: distKm,
+                        type: el.tags?.amenity || el.tags?.healthcare || "medical"
+                    };
+                }).filter((h: any) => h.lat && h.lng) // Filter out invalid coordinates
+                    .sort((a: any, b: any) => a.distance - b.distance) // Sort by distance
+                    .slice(0, 30); // Limit to 30 closest
 
-                            // FILTER: Only accept results within 50km
-                            if (distKm <= 50) {
-                                seenIds.add(f.id);
-                                allFeatures.push({
-                                    id: f.id,
-                                    name: f.text,
-                                    address: f.properties.address || f.place_name,
-                                    lng: f.center[0],
-                                    lat: f.center[1],
-                                    distance: distKm // Store for sorting
-                                });
-                            }
-                        }
-                    });
-                }
-            });
+                console.log(`Found ${hospitalList.length} medical facilities from OSM`);
 
-            // Sort by distance (closest first)
-            allFeatures.sort((a, b) => a.distance - b.distance);
-
-            // Limit to top 20 relevant results
-            const finalResults = allFeatures.slice(0, 20);
-
-            console.log(`Total local found: ${finalResults.length}`);
-
-            if (finalResults.length > 0) {
-                setHospitals(finalResults);
-                toast.success(`Found ${finalResults.length} medical facilities nearby`);
+                setHospitals(hospitalList);
+                toast.success(`Found ${hospitalList.length} medical facilities nearby`);
             } else {
-                // If we found 0 results after filtering, it means Mapbox has nothing within 50km.
-                // We'll try to visually warn the user, but we won't show fake data.
-                toast.error("No hospitals found within 50km. Map data may be limited in this area.");
+                console.warn("No hospitals found in Overpass response");
+                toast.error("No medical facilities found within 10km. Try a different location.");
             }
 
         } catch (e) {
-            console.error("Fetch Error:", e);
-            toast.error("Network error. Please check your connection.");
+            console.error("Overpass API Error:", e);
+            toast.error("Failed to fetch hospital data. Please try again.");
         }
     };
 
