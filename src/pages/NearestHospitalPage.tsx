@@ -133,7 +133,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
         return `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`;
     };
 
-    // Fetch Nearby Hospitals using Mapbox Geocoding API
+    // Fetch Nearby Hospitals using Mapbox Geocoding API (Multi-pass)
     const fetchNearbyHospitals = async (lat: number, lng: number) => {
         if (!MAPBOX_TOKEN) {
             console.warn("No Mapbox Token. Skipping API call.");
@@ -142,46 +142,54 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
         }
 
         console.log("Fetching hospitals for:", lat, lng);
-
         const bbox = getBbox(lat, lng);
-        const searchQuery = "hospital";
-        // Use 'bbox' to strictly limit results to the user's area
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${searchQuery}.json?bbox=${bbox}&limit=10&access_token=${MAPBOX_TOKEN}`;
+
+        // Search for multiple terms to maximize coverage
+        const searchTerms = ['hospital', 'medical', 'clinic', 'doctor'];
 
         try {
-            const res = await fetch(url);
-            const data = await res.json();
-            console.log("Hospital API Response:", data);
+            // Run all searches in parallel
+            const promises = searchTerms.map(term =>
+                fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${term}.json?bbox=${bbox}&limit=10&access_token=${MAPBOX_TOKEN}`)
+                    .then(res => res.json())
+            );
 
-            if (data.features && data.features.length > 0) {
-                setHospitals(data.features.map((f: any) => ({
-                    id: f.id,
-                    name: f.text,
-                    address: f.properties.address || f.place_name,
-                    lng: f.center[0],
-                    lat: f.center[1]
-                })));
-                toast.success(`Found ${data.features.length} nearby hospitals`);
-            } else {
-                console.warn("No hospitals found. Trying clinics...");
-                // Fallback: Clinic Search with bbox
-                const clinicUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/clinic.json?bbox=${bbox}&limit=10&access_token=${MAPBOX_TOKEN}`;
-                const clinicRes = await fetch(clinicUrl);
-                const clinicData = await clinicRes.json();
+            const results = await Promise.all(promises);
 
-                if (clinicData.features && clinicData.features.length > 0) {
-                    setHospitals(clinicData.features.map((f: any) => ({
-                        id: f.id,
-                        name: f.text,
-                        address: f.properties.address || f.place_name,
-                        lng: f.center[0],
-                        lat: f.center[1]
-                    })));
-                    toast.success(`Found ${clinicData.features.length} nearby clinics`);
-                } else {
-                    toast.error("No hospitals or clinics found in this area. Try zooming out or moving the map.");
+            // Aggregating results
+            const allFeatures: any[] = [];
+            const seenIds = new Set();
+
+            results.forEach(data => {
+                if (data.features) {
+                    data.features.forEach((f: any) => {
+                        if (!seenIds.has(f.id)) {
+                            seenIds.add(f.id);
+                            allFeatures.push({
+                                id: f.id,
+                                name: f.text,
+                                address: f.properties.address || f.place_name,
+                                lng: f.center[0],
+                                lat: f.center[1]
+                            });
+                        }
+                    });
                 }
+            });
+
+            console.log(`Total found: ${allFeatures.length} from [${searchTerms.join(', ')}]`);
+
+            if (allFeatures.length > 0) {
+                // Sort by distance (optional, but good for UX)
+                // Since we have user location, we can sort roughly if needed, 
+                // but Mapbox usually returns relevant results first.
+                // We'll trust Mapbox relevance + unique set.
+                setHospitals(allFeatures);
+                toast.success(`Found ${allFeatures.length} medical facilities nearby`);
+            } else {
+                toast.error("No medical facilities found in this area. Try zooming out.");
             }
+
         } catch (e) {
             console.error("Fetch Error:", e);
             toast.error("Network error. Please check your connection.");
