@@ -132,8 +132,11 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
         if (!MAPBOX_TOKEN) return;
 
         console.log("Fetching hospitals for:", lat, lng);
-        // Using 'hospital' query with proximity to user location
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/hospital.json?proximity=${lng},${lat}&types=poi&limit=10&access_token=${MAPBOX_TOKEN}`;
+
+        // Broader search: "hospital" without strict type filtering
+        // This helps find locations that might not be strictly tagged as "poi"
+        const searchQuery = "hospital";
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${searchQuery}.json?proximity=${lng},${lat}&limit=10&access_token=${MAPBOX_TOKEN}`;
 
         try {
             const res = await fetch(url);
@@ -150,8 +153,24 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                 })));
                 toast.success(`Found ${data.features.length} nearby hospitals`);
             } else {
-                toast.error("No hospitals found nearby.");
                 console.warn("No features in response:", data);
+                // Fallback attempt: search for "clinic"
+                const clinicUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/clinic.json?proximity=${lng},${lat}&limit=10&access_token=${MAPBOX_TOKEN}`;
+                const clinicRes = await fetch(clinicUrl);
+                const clinicData = await clinicRes.json();
+
+                if (clinicData.features && clinicData.features.length > 0) {
+                    setHospitals(clinicData.features.map((f: any) => ({
+                        id: f.id,
+                        name: f.text,
+                        address: f.properties.address || f.place_name,
+                        lng: f.center[0],
+                        lat: f.center[1]
+                    })));
+                    toast.success(`Found ${clinicData.features.length} nearby clinics`);
+                } else {
+                    toast.error("No hospitals or clinics found nearby.");
+                }
             }
         } catch (e) {
             console.error("Fetch Error:", e);
@@ -202,12 +221,12 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
     };
 
     return (
-        <div className="relative h-screen w-full bg-slate-900 flex flex-col overflow-hidden">
+        <div className="relative h-screen w-full bg-slate-50 flex flex-col overflow-hidden">
             {/* --- Top Bar --- */}
             <div className="absolute top-4 left-4 right-4 z-50 flex justify-between items-start pointer-events-none">
                 <Button
                     variant="outline"
-                    className="bg-white/90 backdrop-blur pointer-events-auto border-0 shadow-lg hover:bg-white text-slate-800 rounded-full pl-3 pr-5"
+                    className="bg-white/90 backdrop-blur pointer-events-auto border-slate-200 shadow-lg hover:bg-slate-50 text-slate-800 rounded-full pl-3 pr-5"
                     onClick={() => onNavigate('home')}
                 >
                     <ArrowLeft className="mr-2 h-4 w-4" /> Exit
@@ -236,7 +255,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                         {...viewState}
                         onMove={evt => !isNavigating && setViewState(evt.viewState)} // Disable manual move if navigating (optional, usually good to allow pan but snap back)
                         style={{ width: '100%', height: '100%' }}
-                        mapStyle="mapbox://styles/mapbox/dark-v11" // Dark mode for premium/futuristic feel
+                        mapStyle="mapbox://styles/mapbox/streets-v12" // Light mode
                         mapboxAccessToken={MAPBOX_TOKEN}
                         pitchWithRotate={true}
                         dragRotate={true}
@@ -244,7 +263,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                         {!isNavigating && <NavigationControl position="bottom-right" />}
                         <GeolocateControl position="top-right" />
 
-                        {/* --- User Marker (Futuristic Pulse) --- */}
+                        {/* --- User Marker (Orange Brand) --- */}
                         {userLocation && (
                             <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="center">
                                 <div className="relative flex items-center justify-center group">
@@ -252,7 +271,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                                     <div className="absolute h-20 w-20 bg-orange-500/20 rounded-full animate-ping delay-75"></div>
                                     <div className="absolute h-12 w-12 bg-orange-500/40 rounded-full animate-pulse"></div>
                                     {/* Core */}
-                                    <div className="relative h-6 w-6 bg-gradient-to-br from-orange-400 to-red-600 rounded-full border-2 border-white shadow-[0_0_15px_rgba(249,115,22,0.6)] z-20">
+                                    <div className="relative h-6 w-6 bg-orange-600 rounded-full border-2 border-white shadow-[0_0_15px_rgba(249,115,22,0.6)] z-20">
                                         {/* Direction Cone */}
                                         {isNavigating && (
                                             <div
@@ -282,66 +301,49 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                                 <div className={`relative transition-all duration-300 cursor-pointer ${selectedHospital?.id === h.id ? 'scale-125 z-50' : 'scale-100 hover:scale-110'}`}>
                                     {/* Medical Cross Icon Background */}
                                     <div className={`h-10 w-10 rounded-full flex items-center justify-center shadow-lg border-2 ${selectedHospital?.id === h.id ? 'bg-red-600 border-white shadow-red-500/50' : 'bg-white border-red-600'}`}>
-                                        {/* Plus SVG directly to ensure visibility */}
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={selectedHospital?.id === h.id ? 'text-white' : 'text-red-600'}>
                                             <path d="M5 12h14" /><path d="M12 5v14" />
                                         </svg>
                                     </div>
 
                                     {/* Label on Hover */}
-                                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-1 rounded text-xs text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-white px-2 py-1 rounded text-xs text-slate-800 border border-slate-100 font-bold shadow-md whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
                                         {h.name}
                                     </div>
                                 </div>
                             </Marker>
                         ))}
 
-                        {/* --- Route Line (Neon Effect) --- */}
+                        {/* --- Route Line (Orange) --- */}
                         {routeGeoJSON && (
-                            <>
-                                {/* Glow Layer */}
-                                <Source id="route-glow" type="geojson" data={routeGeoJSON}>
-                                    <Layer
-                                        id="route-glow-line"
-                                        type="line"
-                                        layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-                                        paint={{
-                                            'line-color': '#f97316',
-                                            'line-width': 12,
-                                            'line-opacity': 0.3,
-                                            'line-blur': 4
-                                        }}
-                                    />
-                                </Source>
-                                {/* Core Line */}
-                                <Source id="route" type="geojson" data={routeGeoJSON}>
-                                    <Layer
-                                        id="route-line"
-                                        type="line"
-                                        layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-                                        paint={{
-                                            'line-color': '#fff',
-                                            'line-width': 4,
-                                        }}
-                                    />
-                                </Source>
-                            </>
+                            <Source id="route" type="geojson" data={routeGeoJSON}>
+                                <Layer
+                                    id="route-line"
+                                    type="line"
+                                    layout={{ 'line-join': 'round', 'line-cap': 'round' }}
+                                    paint={{
+                                        'line-color': '#f97316', // Orange-500
+                                        'line-width': 6,
+                                        'line-opacity': 0.8
+                                    }}
+                                />
+                            </Source>
                         )}
                     </Map>
                 )}
             </div>
 
-            {/* --- Arrival Popup (Futuristic Modal) --- */}
+            {/* --- Arrival Popup (Light Theme) --- */}
             {hasArrived && (
-                <div className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-500">
-                    <div className="bg-gradient-to-b from-slate-900 to-slate-800 border border-orange-500/50 p-8 rounded-3xl shadow-[0_0_50px_rgba(249,115,22,0.4)] text-center max-w-sm mx-4 transform scale-110">
-                        <div className="bg-orange-500/20 p-4 rounded-full w-fit mx-auto mb-6 ring-2 ring-orange-500">
-                            <Trophy className="h-12 w-12 text-orange-400" />
+                <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-500">
+                    <div className="bg-white border-2 border-orange-100 p-8 rounded-3xl shadow-2xl text-center max-w-sm mx-4 transform scale-110">
+                        <div className="bg-orange-50 p-4 rounded-full w-fit mx-auto mb-6 ring-4 ring-orange-100">
+                            <Trophy className="h-12 w-12 text-orange-500" />
                         </div>
-                        <h2 className="text-2xl font-black text-white mb-2 tracking-wide uppercase">Destination Reached</h2>
-                        <p className="text-slate-300 mb-8">You have arrived at <br /><span className="text-orange-400 font-bold">{selectedHospital?.name}</span></p>
+                        <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-wide uppercase">Destination Reached</h2>
+                        <p className="text-slate-500 mb-8">You have arrived at <br /><span className="text-orange-600 font-bold">{selectedHospital?.name}</span></p>
                         <Button
-                            className="bg-orange-500 hover:bg-orange-600 text-white w-full font-bold shadow-lg shadow-orange-500/25 py-6 text-lg rounded-xl"
+                            className="bg-orange-600 hover:bg-orange-700 text-white w-full font-bold shadow-lg shadow-orange-500/25 py-6 text-lg rounded-xl"
                             onClick={() => {
                                 setHasArrived(false);
                                 setSelectedHospital(null);
@@ -355,35 +357,35 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                 </div>
             )}
 
-            {/* --- Bottom Navigation Panel --- */}
+            {/* --- Bottom Navigation Panel (Light Theme) --- */}
             {selectedHospital && !hasArrived && (
                 <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-8 md:w-[400px] z-40">
-                    <Card className="bg-slate-900/95 backdrop-blur-md border-slate-700 text-white shadow-2xl overflow-hidden rounded-2xl">
+                    <Card className="bg-white/95 backdrop-blur-md border-orange-100 text-slate-900 shadow-2xl overflow-hidden rounded-2xl">
                         {/* Progress Bar (Decoration) */}
-                        <div className="h-1 bg-slate-700 w-full">
+                        <div className="h-1 bg-orange-100 w-full">
                             <div className="h-full bg-orange-500 w-1/3 animate-[shimmer_2s_infinite]"></div>
                         </div>
 
                         <CardHeader className="pb-2 pt-4 flex flex-row justify-between items-start gap-4">
                             <div>
                                 <h3 className="text-xl font-bold leading-none mb-2">{selectedHospital.name}</h3>
-                                <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Hospital • {routeInfo?.distance || 'Nearby'}</p>
+                                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Hospital • {routeInfo?.distance || 'Nearby'}</p>
                             </div>
-                            <div className="bg-orange-500 p-2 rounded-lg">
-                                <Compass className="h-6 w-6 text-white" />
+                            <div className="bg-orange-50 p-2 rounded-lg">
+                                <Compass className="h-6 w-6 text-orange-500" />
                             </div>
                         </CardHeader>
 
                         <CardContent className="pt-2">
                             {/* Route Stats */}
-                            <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl mb-4 border border-slate-700">
-                                <div className="text-center w-1/2 border-r border-slate-700">
+                            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl mb-4 border border-slate-100">
+                                <div className="text-center w-1/2 border-r border-slate-200">
                                     <p className="text-xs text-slate-400 uppercase font-bold">Distance</p>
-                                    <p className="text-xl font-black text-white">{routeInfo?.distance || '--'}</p>
+                                    <p className="text-xl font-black text-slate-900">{routeInfo?.distance || '--'}</p>
                                 </div>
                                 <div className="text-center w-1/2">
                                     <p className="text-xs text-slate-400 uppercase font-bold">Est. Time</p>
-                                    <p className="text-xl font-black text-orange-400">{routeInfo?.duration || '--'}</p>
+                                    <p className="text-xl font-black text-orange-600">{routeInfo?.duration || '--'}</p>
                                 </div>
                             </div>
 
@@ -391,7 +393,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                             <div className="grid grid-cols-2 gap-3">
                                 {!isNavigating ? (
                                     <Button
-                                        className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-12 shadow-[0_0_20px_rgba(234,88,12,0.3)] transition-all hover:scale-105"
+                                        className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-12 shadow-md transition-all hover:scale-105"
                                         onClick={startNavigation}
                                         disabled={!routeGeoJSON}
                                     >
@@ -400,7 +402,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                                 ) : (
                                     <Button
                                         variant="destructive"
-                                        className="bg-red-500/20 hover:bg-red-500/30 text-red-500 font-bold h-12 border border-red-500/50"
+                                        className="bg-red-50 hover:bg-red-100 text-red-600 font-bold h-12 border border-red-200"
                                         onClick={stopNavigation}
                                     >
                                         STOP
@@ -409,7 +411,7 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
 
                                 <Button
                                     variant="secondary"
-                                    className="bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold h-12"
+                                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold h-12 border border-slate-200"
                                     onClick={() => setSelectedHospital(null)}
                                 >
                                     Cancel
