@@ -129,19 +129,21 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
 
     // Fetch Nearby Hospitals using Mapbox Geocoding API
     const fetchNearbyHospitals = async (lat: number, lng: number) => {
-        if (!MAPBOX_TOKEN) return;
+        if (!MAPBOX_TOKEN) {
+            console.warn("No Mapbox Token. Skipping API call.");
+            toast.error("Map configuration error. Please contact support.");
+            return;
+        }
 
         console.log("Fetching hospitals for:", lat, lng);
 
-        // Broader search: "hospital" without strict type filtering
-        // This helps find locations that might not be strictly tagged as "poi"
         const searchQuery = "hospital";
         const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${searchQuery}.json?proximity=${lng},${lat}&limit=10&access_token=${MAPBOX_TOKEN}`;
 
         try {
             const res = await fetch(url);
             const data = await res.json();
-            console.log("Hospital Data:", data);
+            console.log("Hospital API Response:", data);
 
             if (data.features && data.features.length > 0) {
                 setHospitals(data.features.map((f: any) => ({
@@ -153,8 +155,8 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                 })));
                 toast.success(`Found ${data.features.length} nearby hospitals`);
             } else {
-                console.warn("No features in response:", data);
-                // Fallback attempt: search for "clinic"
+                console.warn("No hospitals found. Trying clinics...");
+                // Fallback: Clinic Search
                 const clinicUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/clinic.json?proximity=${lng},${lat}&limit=10&access_token=${MAPBOX_TOKEN}`;
                 const clinicRes = await fetch(clinicUrl);
                 const clinicData = await clinicRes.json();
@@ -169,12 +171,12 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                     })));
                     toast.success(`Found ${clinicData.features.length} nearby clinics`);
                 } else {
-                    toast.error("No hospitals or clinics found nearby.");
+                    toast.error("No hospitals or clinics found in this area. Try zooming out or moving the map.");
                 }
             }
         } catch (e) {
             console.error("Fetch Error:", e);
-            toast.error("Failed to load hospitals.");
+            toast.error("Network error. Please check your connection.");
         }
     };
 
@@ -291,23 +293,26 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                                 longitude={h.lng}
                                 latitude={h.lat}
                                 anchor="center"
-                                onClick={(e: any) => {
-                                    e.originalEvent.stopPropagation();
-                                    setSelectedHospital(h);
-                                    calculateRoute(h);
-                                    mapRef.current?.flyTo({ center: [h.lng, h.lat], zoom: 16, pitch: 50, duration: 1500 });
-                                }}
                             >
-                                <div className={`relative transition-all duration-300 cursor-pointer ${selectedHospital?.id === h.id ? 'scale-125 z-50' : 'scale-100 hover:scale-110'}`}>
+                                <div
+                                    className={`relative transition-all duration-300 cursor-pointer ${selectedHospital?.id === h.id ? 'scale-125 z-50' : 'scale-100 hover:scale-110'}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        console.log("Hospital Clicked:", h.name);
+                                        setSelectedHospital(h);
+                                        calculateRoute(h);
+                                        mapRef.current?.flyTo({ center: [h.lng, h.lat], zoom: 16, pitch: 50, duration: 1500 });
+                                    }}
+                                >
                                     {/* Medical Cross Icon Background */}
-                                    <div className={`h-10 w-10 rounded-full flex items-center justify-center shadow-lg border-2 ${selectedHospital?.id === h.id ? 'bg-red-600 border-white shadow-red-500/50' : 'bg-white border-red-600'}`}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={selectedHospital?.id === h.id ? 'text-white' : 'text-red-600'}>
+                                    <div className={`h-12 w-12 rounded-full flex items-center justify-center shadow-xl border-3 ${selectedHospital?.id === h.id ? 'bg-red-600 border-white shadow-red-500/50 animate-bounce' : 'bg-white border-red-600 hover:shadow-red-500/30'}`}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={selectedHospital?.id === h.id ? 'text-white' : 'text-red-600'}>
                                             <path d="M5 12h14" /><path d="M12 5v14" />
                                         </svg>
                                     </div>
 
-                                    {/* Label on Hover */}
-                                    <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-white px-2 py-1 rounded text-xs text-slate-800 border border-slate-100 font-bold shadow-md whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                                    {/* Label Always Visible */}
+                                    <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-lg whitespace-nowrap">
                                         {h.name}
                                     </div>
                                 </div>
