@@ -3,7 +3,7 @@ import Map, { Marker, Popup, Source, Layer, NavigationControl, GeolocateControl,
 import mapboxgl from 'mapbox-gl';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
-import { ArrowLeft, Navigation, MapPin, Clock, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Navigation, MapPin, Clock, AlertTriangle, Loader2, Compass, Ban, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Ensure Mapbox CSS is included
@@ -12,274 +12,385 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 // Access Token
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
-// Debug Log for Vercel troubleshooting
+// Access Token Debug Log
 console.log("Mapbox Configuration:", {
     hasToken: !!MAPBOX_TOKEN,
     tokenLength: MAPBOX_TOKEN?.length || 0,
     envMode: import.meta.env.MODE
 });
 
+// Haversine Distance Formula (km)
+const getDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+};
+
+const deg2rad = (deg: number) => deg * (Math.PI / 180);
+
 export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string) => void }) {
     const mapRef = useRef<MapRef>(null);
-    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const watchIdRef = useRef<number | null>(null);
+
+    // State
+    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number, heading?: number } | null>(null);
     const [hospitals, setHospitals] = useState<any[]>([]);
     const [selectedHospital, setSelectedHospital] = useState<any | null>(null);
     const [routeGeoJSON, setRouteGeoJSON] = useState<any>(null);
-    const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string, distanceVal: number } | null>(null);
     const [viewState, setViewState] = useState({
         longitude: 90.4125,
         latitude: 23.8103,
-        zoom: 13
+        zoom: 14,
+        pitch: 0,
+        bearing: 0
     });
 
-    // Get User Location on Mount
+    // Navigation Modes
+    const [isNavigating, setIsNavigating] = useState(false);
+    const [hasArrived, setHasArrived] = useState(false);
+
+    // 1. Live Tracking Mechanism
     useEffect(() => {
         if (!navigator.geolocation) {
-            toast.error("Geolocation is not supported by your browser");
-            setLoading(false);
+            toast.error("Geolocation not supported");
             return;
         }
 
+        // Initial fetch
         navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const { latitude, longitude } = position.coords;
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
                 setUserLocation({ lat: latitude, lng: longitude });
-                setViewState(prev => ({ ...prev, latitude, longitude, zoom: 14 }));
+                setViewState(v => ({ ...v, latitude, longitude }));
                 fetchNearbyHospitals(latitude, longitude);
-                setLoading(false);
             },
-            () => {
-                toast.error("Unable to retrieve your location");
-                // Default to Dhaka
-                fetchNearbyHospitals(23.8103, 90.4125);
-                setLoading(false);
+            (err) => {
+                console.error(err);
+                toast.error("Could not get initial location");
+            },
+            { enableHighAccuracy: true }
+        );
+
+        // Real-time Watch
+        watchIdRef.current = navigator.geolocation.watchPosition(
+            (pos) => {
+                const { latitude, longitude, heading } = pos.coords;
+                setUserLocation(prev => ({
+                    lat: latitude,
+                    lng: longitude,
+                    heading: heading || prev?.heading || 0
+                }));
+
+                // If Navigation Mode is ON, lock camera to user
+                if (isNavigating) {
+                    setViewState(prev => ({
+                        ...prev,
+                        latitude,
+                        longitude,
+                        bearing: heading || prev.bearing, // Rotate map with user
+                        zoom: 17, // Zoom in for navigation
+                        pitch: 60 // 3D tilt
+                    }));
+                }
+            },
+            (err) => console.error("Tracking Error:", err),
+            {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000
             }
         );
-    }, []);
 
-    // Fetch Nearby Hospitals using Mapbox Geocoding API
-    const fetchNearbyHospitals = async (lat: number, lng: number) => {
-        if (!MAPBOX_TOKEN) {
-            console.warn("No Mapbox Token. Skipping Mapbox API call.");
-            return;
-        }
+        return () => {
+            if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+        };
+    }, [isNavigating]);
 
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/hospital.json?proximity=${lng},${lat}&types=poi&limit=10&access_token=${MAPBOX_TOKEN}`;
+    // 2. Arrival Detection
+    useEffect(() => {
+        if (isNavigating && selectedHospital && userLocation) {
+            const distKm = getDistanceKm(userLocation.lat, userLocation.lng, selectedHospital.lat, selectedHospital.lng);
 
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-
-            if (data.features) {
-                const places = data.features.map((feature: any) => ({
-                    id: feature.id,
-                    name: feature.text,
-                    address: feature.properties.address || feature.place_name,
-                    lng: feature.center[0],
-                    lat: feature.center[1],
-                }));
-                setHospitals(places);
+            // Check if within 50 meters (0.05 km)
+            if (distKm < 0.05 && !hasArrived) {
+                setHasArrived(true);
+                setIsNavigating(false); // Stop locking camera
+                toast.success("You have arrived at your destination!");
             }
-        } catch (error) {
-            console.error("Error fetching hospitals:", error);
-            toast.error("Failed to load nearby hospitals.");
+        }
+    }, [userLocation, selectedHospital, isNavigating, hasArrived]);
+
+    const fetchNearbyHospitals = async (lat: number, lng: number) => {
+        if (!MAPBOX_TOKEN) return;
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/hospital.json?proximity=${lng},${lat}&types=poi&limit=10&access_token=${MAPBOX_TOKEN}`;
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.features) {
+                setHospitals(data.features.map((f: any) => ({
+                    id: f.id,
+                    name: f.text,
+                    address: f.properties.address || f.place_name,
+                    lng: f.center[0],
+                    lat: f.center[1]
+                })));
+            }
+        } catch (e) {
+            console.error(e);
         }
     };
 
-    // Calculate Route using Mapbox Directions API
     const calculateRoute = async (hospital: any) => {
         if (!userLocation || !MAPBOX_TOKEN) return;
-
         const start = `${userLocation.lng},${userLocation.lat}`;
         const end = `${hospital.lng},${hospital.lat}`;
         const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start};${end}?geometries=geojson&access_token=${MAPBOX_TOKEN}`;
 
         try {
-            const response = await fetch(url);
-            const data = await response.json();
-
-            if (data.routes && data.routes.length > 0) {
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.routes?.[0]) {
                 const route = data.routes[0];
-                setRouteGeoJSON({
-                    type: 'Feature',
-                    properties: {},
-                    geometry: route.geometry
-                });
-
+                setRouteGeoJSON({ type: 'Feature', geometry: route.geometry });
                 setRouteInfo({
                     distance: `${(route.distance / 1000).toFixed(1)} km`,
-                    duration: `${Math.round(route.duration / 60)} mins`
+                    duration: `${Math.round(route.duration / 60)} mins`,
+                    distanceVal: route.distance
                 });
             }
-        } catch (error) {
-            console.error("Error calculating route:", error);
-            toast.error("Failed to calculate route.");
+        } catch (e) {
+            console.error(e);
         }
     };
 
-    const handleHospitalSelect = (hospital: any) => {
-        setSelectedHospital(hospital);
-        calculateRoute(hospital);
+    const startNavigation = () => {
+        setIsNavigating(true);
+        setHasArrived(false);
+        toast.info("Navigation Started");
 
         mapRef.current?.flyTo({
-            center: [hospital.lng, hospital.lat],
-            zoom: 15,
-            duration: 2000
+            center: [userLocation!.lng, userLocation!.lat],
+            zoom: 18,
+            pitch: 60,
+            bearing: userLocation?.heading || 0,
+            duration: 1500
         });
     };
 
+    const stopNavigation = () => {
+        setIsNavigating(false);
+        setViewState(prev => ({ ...prev, pitch: 0, zoom: 14, bearing: 0 })); // Reset view
+    };
+
     return (
-        <div className="relative h-screen w-full bg-slate-50 flex flex-col">
-            {/* Header / Back Button */}
-            <div className="absolute top-4 left-4 z-50">
+        <div className="relative h-screen w-full bg-slate-900 flex flex-col overflow-hidden">
+            {/* --- Top Bar --- */}
+            <div className="absolute top-4 left-4 right-4 z-50 flex justify-between items-start pointer-events-none">
                 <Button
                     variant="outline"
-                    className="bg-white border-slate-200 text-slate-700 shadow-md hover:bg-slate-50 font-medium hover:text-orange-600"
+                    className="bg-white/90 backdrop-blur pointer-events-auto border-0 shadow-lg hover:bg-white text-slate-800 rounded-full pl-3 pr-5"
                     onClick={() => onNavigate('home')}
                 >
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Exit
                 </Button>
+
+                {isNavigating && (
+                    <div className="bg-orange-600 text-white px-6 py-2 rounded-full shadow-lg shadow-orange-500/20 animate-pulse font-bold flex items-center gap-2">
+                        <Navigation className="h-5 w-5 fill-current" />
+                        NAVIGATING
+                    </div>
+                )}
             </div>
 
-            {/* Map Container */}
-            <div className="flex-1 relative w-full h-full overflow-hidden">
+            {/* --- Map --- */}
+            <div className="flex-1 w-full h-full">
                 {!MAPBOX_TOKEN ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100 z-10 w-full h-full">
-                        <div className="text-center max-w-md p-8 bg-white rounded-2xl shadow-xl border border-red-100">
-                            <div className="bg-red-50 p-3 rounded-full w-fit mx-auto mb-4">
-                                <AlertTriangle className="h-8 w-8 text-red-500" />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">Mapbox Token Required</h3>
-                            <p className="text-slate-500 mb-4">
-                                Please add your Mapbox Public Access Token to the <code>.env</code> file to enable the map.
-                            </p>
-                            <code className="block bg-slate-100 p-3 rounded-lg text-sm text-slate-700 mb-4 text-left">
-                                VITE_MAPBOX_TOKEN=pk.eyJ...
-                            </code>
-                            <Button className="bg-orange-600 hover:bg-orange-700 text-white" onClick={() => onNavigate('home')}>Go Back</Button>
+                    <div className="flex h-full items-center justify-center bg-slate-100 text-slate-500">
+                        <div className="text-center">
+                            <Ban className="h-12 w-12 mx-auto mb-2 text-red-500" />
+                            <p>Mapbox Token Missing</p>
                         </div>
                     </div>
                 ) : (
                     <Map
                         ref={mapRef}
                         {...viewState}
-                        onMove={(evt: ViewStateChangeEvent) => setViewState(evt.viewState)}
+                        onMove={evt => !isNavigating && setViewState(evt.viewState)} // Disable manual move if navigating (optional, usually good to allow pan but snap back)
                         style={{ width: '100%', height: '100%' }}
-                        mapStyle="mapbox://styles/mapbox/streets-v12"
+                        mapStyle="mapbox://styles/mapbox/dark-v11" // Dark mode for premium/futuristic feel
                         mapboxAccessToken={MAPBOX_TOKEN}
+                        pitchWithRotate={true}
+                        dragRotate={true}
                     >
-                        <NavigationControl position="bottom-right" />
+                        {!isNavigating && <NavigationControl position="bottom-right" />}
                         <GeolocateControl position="top-right" />
 
-                        {/* User Location Marker */}
+                        {/* --- User Marker (Futuristic Pulse) --- */}
                         {userLocation && (
                             <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="center">
-                                <div className="relative">
-                                    <div className="h-4 w-4 bg-orange-600 rounded-full border-2 border-white shadow-lg pointer-events-none z-10 relative"></div>
-                                    <div className="absolute -inset-4 bg-orange-500/30 rounded-full animate-ping"></div>
+                                <div className="relative flex items-center justify-center group">
+                                    {/* Pulse Ring */}
+                                    <div className="absolute h-20 w-20 bg-orange-500/20 rounded-full animate-ping delay-75"></div>
+                                    <div className="absolute h-12 w-12 bg-orange-500/40 rounded-full animate-pulse"></div>
+                                    {/* Core */}
+                                    <div className="relative h-6 w-6 bg-gradient-to-br from-orange-400 to-red-600 rounded-full border-2 border-white shadow-[0_0_15px_rgba(249,115,22,0.6)] z-20">
+                                        {/* Direction Cone */}
+                                        {isNavigating && (
+                                            <div
+                                                className="absolute -top-10 -left-[18px] w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-b-[50px] border-b-orange-500/50 blur-[2px]"
+                                                style={{ transform: `rotate(${userLocation.heading || 0}deg)`, transformOrigin: 'bottom center' }}
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             </Marker>
                         )}
 
-                        {/* Hospital Markers */}
-                        {hospitals.map((hospital) => (
+                        {/* --- Hospitals --- */}
+                        {hospitals.map(h => (
                             <Marker
-                                key={hospital.id}
-                                longitude={hospital.lng}
-                                latitude={hospital.lat}
+                                key={h.id}
+                                longitude={h.lng}
+                                latitude={h.lat}
                                 anchor="bottom"
                                 onClick={(e: any) => {
                                     e.originalEvent.stopPropagation();
-                                    handleHospitalSelect(hospital);
+                                    setSelectedHospital(h);
+                                    calculateRoute(h);
+                                    // Smooth fly to
+                                    mapRef.current?.flyTo({ center: [h.lng, h.lat], zoom: 15, pitch: 45, duration: 1500 });
                                 }}
                             >
-                                <div className="cursor-pointer group relative">
-                                    <div className={`p-2 rounded-full border-2 shadow-sm transition-all ${selectedHospital?.id === hospital.id ? 'bg-red-600 border-white scale-110 z-20' : 'bg-white border-red-500 group-hover:scale-110'}`}>
-                                        <MapPin className={`h-5 w-5 ${selectedHospital?.id === hospital.id ? 'text-white' : 'text-red-500'}`} />
-                                    </div>
-                                    <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-white px-2 py-1 rounded shadow-md text-[10px] font-bold text-slate-700 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                        {hospital.name}
-                                    </div>
+                                <div className={`relative transition-all duration-500 ${selectedHospital?.id === h.id ? 'scale-125 z-50' : 'scale-100 hover:scale-110'}`}>
+                                    <MapPin className={`h-8 w-8 drop-shadow-lg ${selectedHospital?.id === h.id ? 'text-orange-500 fill-orange-500 animate-bounce' : 'text-slate-400 fill-slate-800'}`} />
                                 </div>
                             </Marker>
                         ))}
 
-                        {/* Route Layer */}
+                        {/* --- Route Line (Neon Effect) --- */}
                         {routeGeoJSON && (
-                            <Source id="route" type="geojson" data={routeGeoJSON}>
-                                <Layer
-                                    id="route-line"
-                                    type="line"
-                                    layout={{
-                                        'line-join': 'round',
-                                        'line-cap': 'round'
-                                    }}
-                                    paint={{
-                                        'line-color': '#f97316', // Orange-500
-                                        'line-width': 4,
-                                        'line-opacity': 0.8
-                                    }}
-                                />
-                            </Source>
+                            <>
+                                {/* Glow Layer */}
+                                <Source id="route-glow" type="geojson" data={routeGeoJSON}>
+                                    <Layer
+                                        id="route-glow-line"
+                                        type="line"
+                                        layout={{ 'line-join': 'round', 'line-cap': 'round' }}
+                                        paint={{
+                                            'line-color': '#f97316',
+                                            'line-width': 12,
+                                            'line-opacity': 0.3,
+                                            'line-blur': 4
+                                        }}
+                                    />
+                                </Source>
+                                {/* Core Line */}
+                                <Source id="route" type="geojson" data={routeGeoJSON}>
+                                    <Layer
+                                        id="route-line"
+                                        type="line"
+                                        layout={{ 'line-join': 'round', 'line-cap': 'round' }}
+                                        paint={{
+                                            'line-color': '#fff',
+                                            'line-width': 4,
+                                        }}
+                                    />
+                                </Source>
+                            </>
                         )}
                     </Map>
                 )}
             </div>
 
-            {/* Bottom Card - Premium Design */}
-            {selectedHospital && (
-                <div className="absolute bottom-8 left-4 right-4 md:left-auto md:right-8 md:w-96 z-40">
-                    <Card className="border-0 shadow-2xl bg-white/100 backdrop-blur-none rounded-xl overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
-                        <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 to-amber-500"></div>
-                        <CardHeader className="pb-3 pt-4 px-5">
-                            <div className="flex justify-between items-start gap-4">
-                                <div>
-                                    <h3 className="font-bold text-lg text-slate-900 leading-tight mb-1">{selectedHospital.name}</h3>
-                                    <p className="text-sm text-slate-500 leading-snug">{selectedHospital.address}</p>
-                                </div>
-                                <div className="bg-orange-50 p-2 rounded-lg shrink-0">
-                                    <MapPin className="h-5 w-5 text-orange-600" />
-                                </div>
+            {/* --- Arrival Popup (Futuristic Modal) --- */}
+            {hasArrived && (
+                <div className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-500">
+                    <div className="bg-gradient-to-b from-slate-900 to-slate-800 border border-orange-500/50 p-8 rounded-3xl shadow-[0_0_50px_rgba(249,115,22,0.4)] text-center max-w-sm mx-4 transform scale-110">
+                        <div className="bg-orange-500/20 p-4 rounded-full w-fit mx-auto mb-6 ring-2 ring-orange-500">
+                            <Trophy className="h-12 w-12 text-orange-400" />
+                        </div>
+                        <h2 className="text-2xl font-black text-white mb-2 tracking-wide uppercase">Destination Reached</h2>
+                        <p className="text-slate-300 mb-8">You have arrived at <br /><span className="text-orange-400 font-bold">{selectedHospital?.name}</span></p>
+                        <Button
+                            className="bg-orange-500 hover:bg-orange-600 text-white w-full font-bold shadow-lg shadow-orange-500/25 py-6 text-lg rounded-xl"
+                            onClick={() => {
+                                setHasArrived(false);
+                                setSelectedHospital(null);
+                                setRouteGeoJSON(null);
+                                stopNavigation();
+                            }}
+                        >
+                            Complete Trip
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* --- Bottom Navigation Panel --- */}
+            {selectedHospital && !hasArrived && (
+                <div className="absolute bottom-6 left-4 right-4 md:left-auto md:right-8 md:w-[400px] z-40">
+                    <Card className="bg-slate-900/95 backdrop-blur-md border-slate-700 text-white shadow-2xl overflow-hidden rounded-2xl">
+                        {/* Progress Bar (Decoration) */}
+                        <div className="h-1 bg-slate-700 w-full">
+                            <div className="h-full bg-orange-500 w-1/3 animate-[shimmer_2s_infinite]"></div>
+                        </div>
+
+                        <CardHeader className="pb-2 pt-4 flex flex-row justify-between items-start gap-4">
+                            <div>
+                                <h3 className="text-xl font-bold leading-none mb-2">{selectedHospital.name}</h3>
+                                <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Hospital • {routeInfo?.distance || 'Nearby'}</p>
+                            </div>
+                            <div className="bg-orange-500 p-2 rounded-lg">
+                                <Compass className="h-6 w-6 text-white" />
                             </div>
                         </CardHeader>
-                        <CardContent className="px-5 pb-5">
-                            <div className="flex items-center gap-3 mb-5">
-                                {routeInfo ? (
-                                    <>
-                                        <div className="flex items-center gap-1.5 text-slate-700 font-semibold bg-slate-100 px-3 py-1.5 rounded-md text-sm">
-                                            <Navigation className="h-3.5 w-3.5 text-slate-500" />
-                                            {routeInfo.distance}
-                                        </div>
-                                        <div className="flex items-center gap-1.5 text-orange-700 font-semibold bg-orange-50 px-3 py-1.5 rounded-md text-sm">
-                                            <Clock className="h-3.5 w-3.5 text-orange-500" />
-                                            {routeInfo.duration}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <span className="text-sm text-slate-400 flex items-center gap-2">
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                        Calculating route...
-                                    </span>
-                                )}
+
+                        <CardContent className="pt-2">
+                            {/* Route Stats */}
+                            <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl mb-4 border border-slate-700">
+                                <div className="text-center w-1/2 border-r border-slate-700">
+                                    <p className="text-xs text-slate-400 uppercase font-bold">Distance</p>
+                                    <p className="text-xl font-black text-white">{routeInfo?.distance || '--'}</p>
+                                </div>
+                                <div className="text-center w-1/2">
+                                    <p className="text-xs text-slate-400 uppercase font-bold">Est. Time</p>
+                                    <p className="text-xl font-black text-orange-400">{routeInfo?.duration || '--'}</p>
+                                </div>
                             </div>
 
+                            {/* Actions */}
                             <div className="grid grid-cols-2 gap-3">
+                                {!isNavigating ? (
+                                    <Button
+                                        className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-12 shadow-[0_0_20px_rgba(234,88,12,0.3)] transition-all hover:scale-105"
+                                        onClick={startNavigation}
+                                        disabled={!routeGeoJSON}
+                                    >
+                                        <Navigation className="mr-2 h-5 w-5" /> GO NOW
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        variant="destructive"
+                                        className="bg-red-500/20 hover:bg-red-500/30 text-red-500 font-bold h-12 border border-red-500/50"
+                                        onClick={stopNavigation}
+                                    >
+                                        STOP
+                                    </Button>
+                                )}
+
                                 <Button
-                                    className="bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-200"
-                                    onClick={() => {
-                                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${selectedHospital.lat},${selectedHospital.lng}`);
-                                        toast.success("Opening Navigation...");
-                                    }}
+                                    variant="secondary"
+                                    className="bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold h-12"
+                                    onClick={() => setSelectedHospital(null)}
                                 >
-                                    <Navigation className="mr-2 h-4 w-4" /> Start
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="border-slate-200 hover:bg-slate-50 text-slate-700 hover:text-orange-600 hover:border-orange-200"
-                                    onClick={() => { setSelectedHospital(null); setRouteGeoJSON(null); }}
-                                >
-                                    Close
+                                    Cancel
                                 </Button>
                             </div>
                         </CardContent>
