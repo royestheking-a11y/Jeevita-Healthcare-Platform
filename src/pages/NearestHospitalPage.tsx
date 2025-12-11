@@ -426,6 +426,62 @@ export function NearestHospitalPage({ onNavigate }: { onNavigate: (page: string)
                     </Card>
                 </div>
             )}
+
+            {/* --- Hospital List Panel (When no hospital selected) --- */}
+            {!selectedHospital && !hasArrived && hospitals.length > 0 && (
+                <div className="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-3xl shadow-2xl border-t border-orange-100 max-h-[40vh] overflow-hidden">
+                    {/* Handle Bar */}
+                    <div className="flex justify-center pt-3 pb-2">
+                        <div className="w-12 h-1.5 bg-slate-300 rounded-full"></div>
+                    </div>
+
+                    {/* Header */}
+                    <div className="px-4 pb-2 border-b border-slate-100">
+                        <h3 className="text-lg font-bold text-slate-900">Nearby Hospitals</h3>
+                        <p className="text-xs text-slate-500">{hospitals.length} found • Tap to select</p>
+                    </div>
+
+                    {/* Scrollable List */}
+                    <div className="overflow-y-auto max-h-[28vh] px-2 py-2">
+                        {hospitals.map((h, index) => {
+                            const distKm = userLocation
+                                ? getDistanceKm(userLocation.lat, userLocation.lng, h.lat, h.lng).toFixed(1)
+                                : '?';
+
+                            return (
+                                <button
+                                    key={h.id}
+                                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 active:bg-orange-100 transition-colors text-left mb-1 border border-transparent hover:border-orange-200"
+                                    onClick={() => {
+                                        console.log("List Item Clicked:", h.name);
+                                        setSelectedHospital(h);
+                                        calculateRoute(h);
+                                        mapRef.current?.flyTo({ center: [h.lng, h.lat], zoom: 16, pitch: 50, duration: 1500 });
+                                    }}
+                                >
+                                    {/* Icon */}
+                                    <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-red-600">
+                                            <path d="M5 12h14" /><path d="M12 5v14" />
+                                        </svg>
+                                    </div>
+
+                                    {/* Info */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-slate-900 truncate">{h.name}</p>
+                                        <p className="text-xs text-slate-500 truncate">{h.address}</p>
+                                    </div>
+
+                                    {/* Distance Badge */}
+                                    <div className="bg-orange-100 text-orange-700 px-2 py-1 rounded-lg text-sm font-bold flex-shrink-0">
+                                        {distKm} km
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
