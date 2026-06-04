@@ -200,8 +200,8 @@ function AppContent() {
         {/* User routes */}
         <Route path="/cart" element={<PageWrapper Component={CartPage} />} />
         <Route path="/payment" element={<PageWrapper Component={PaymentPage} />} />
-        <Route path="/dashboard" element={<PageWrapper Component={DashboardPage} showFooter={false} />} />
-        <Route path="/dashboard/:section" element={<PageWrapper Component={DashboardPage} showFooter={false} />} />
+        <Route path="/dashboard" element={<PageWrapper Component={DashboardPage} showNavbar={false} showFooter={false} showAssistant={false} />} />
+        <Route path="/dashboard/:section" element={<PageWrapper Component={DashboardPage} showNavbar={false} showFooter={false} showAssistant={false} />} />
 
         {/* Admin routes */}
         <Route

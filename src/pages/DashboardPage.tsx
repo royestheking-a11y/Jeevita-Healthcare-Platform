@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import {
   Calendar, Package, User, Clock, MapPin, Settings,
   FileText, Camera, Plus, LogOut,
-  RotateCcw, Edit, Trash2, Upload, X
+  RotateCcw, Edit, Trash2, Upload, X,
+  Menu, ArrowLeft, Shield, Heart, ChevronRight, LayoutDashboard
 } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
@@ -23,17 +24,32 @@ import { refundsAPI } from '../utils/api';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload';
 
 interface DashboardPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, data?: any) => void;
 }
 
 export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const { section } = useParams<{ section?: string }>();
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
-  const { payments, appointments: allAppointments, prescriptions, addPrescription } = useData();
-  const [activeTab, setActiveTab] = useState(section || 'profile');
+  const { payments, appointments: allAppointments, prescriptions, addPrescription, medicines } = useData();
+  const [activeTab, setActiveTab] = useState(section || 'overview');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showPrescriptionUploadDialog, setShowPrescriptionUploadDialog] = useState(false);
   const [prescriptionImage, setPrescriptionImage] = useState<string>('');
+  const [prescriptionText, setPrescriptionText] = useState<string>('');
+
+  const matchedMedicines = useMemo(() => {
+    if (!prescriptionText.trim()) return [];
+    const lowerText = prescriptionText.toLowerCase();
+    const words = lowerText.split(/\s+/).filter(w => w.length > 2);
+    
+    return medicines.filter(m => {
+      const name = m.name.toLowerCase();
+      const brand = m.brand.toLowerCase();
+      const cat = m.category.toLowerCase();
+      return words.some(w => name.includes(w) || brand.includes(w) || cat.includes(w));
+    }).slice(0, 5);
+  }, [prescriptionText, medicines]);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
     () => ('Notification' in window ? Notification.permission : 'denied')
   );
@@ -271,10 +287,10 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-100/20 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-amber-50 via-orange-50/30 to-amber-100/20 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">Please login to view your dashboard</p>
-          <Button onClick={() => onNavigate('login')} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
+          <Button onClick={() => onNavigate('login')} className="bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
             Login
           </Button>
         </div>
@@ -284,7 +300,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   if (user.status === 'pending') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-100/20 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-amber-50 via-orange-50/30 to-amber-100/20 flex items-center justify-center">
         <Card className="max-w-md">
           <CardHeader>
             <Clock className="h-12 w-12 text-amber-500 mx-auto mb-4" />
@@ -444,110 +460,212 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     return <Badge className={color}>{text}</Badge>;
   };
 
+  const menuItems = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'appointments', label: 'Appointments', icon: Calendar },
+    { id: 'orders', label: 'Orders', icon: Package },
+    { id: 'addresses', label: 'Addresses', icon: MapPin },
+    { id: 'prescriptions', label: 'Prescriptions', icon: FileText },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-100/20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-gray-900 mb-2">My Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {user.name}!</p>
-            </div>
-            {notificationPermission !== 'granted' && NotificationService.isSupported() && (
-              <Button
-                onClick={async () => {
-                  const granted = await NotificationService.requestPermission();
-                  setNotificationPermission(granted ? 'granted' : Notification.permission);
-                  if (granted) {
-                    toast.success('Notifications enabled! You will receive updates about your orders and appointments.');
-                  } else {
-                    toast.info('Please enable notifications in your browser settings to receive updates.');
-                  }
-                }}
-                variant="outline"
-                className="border-amber-300 text-amber-700 hover:bg-amber-50"
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
               >
-                <Clock className="h-4 w-4 mr-2" />
-                Enable Notifications
+                {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="bg-linear-to-br from-amber-500 to-orange-500 p-2 rounded-xl shadow-lg">
+                  <Heart className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold bg-linear-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                    My Dashboard
+                  </h1>
+                  <p className="text-xs text-gray-600">Welcome back, {user.name}!</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              {notificationPermission !== 'granted' && NotificationService.isSupported() && (
+                <Button
+                  onClick={async () => {
+                    const granted = await NotificationService.requestPermission();
+                    setNotificationPermission(granted ? 'granted' : Notification.permission);
+                    if (granted) {
+                      toast.success('Notifications enabled! You will receive updates about your orders and appointments.');
+                    } else {
+                      toast.info('Please enable notifications in your browser settings to receive updates.');
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="hidden md:flex border-amber-300 text-amber-700 hover:bg-amber-50"
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Enable Notifications
+                </Button>
+              )}
+              <Button
+                onClick={() => onNavigate('home')}
+                variant="outline"
+                className="border-amber-200 text-amber-700 hover:bg-amber-50 hidden md:flex"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Home
               </Button>
-            )}
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardContent className="p-6">
-                <div className="space-y-2">
-                  <button
-                    onClick={() => navigateToSection('profile')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'profile' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
-                      }`}
-                  >
-                    <User className="h-5 w-5" />
-                    <span>Profile</span>
-                  </button>
-                  <button
-                    onClick={() => navigateToSection('appointments')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'appointments' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
-                      }`}
-                  >
-                    <Calendar className="h-5 w-5" />
-                    <span>Appointments</span>
-                  </button>
-                  <button
-                    onClick={() => navigateToSection('orders')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'orders' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
-                      }`}
-                  >
-                    <Package className="h-5 w-5" />
-                    <span>Orders</span>
-                  </button>
-                  <button
-                    onClick={() => navigateToSection('addresses')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'addresses' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
-                      }`}
-                  >
-                    <MapPin className="h-5 w-5" />
-                    <span>Addresses</span>
-                  </button>
-                  <button
-                    onClick={() => navigateToSection('prescriptions')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'prescriptions' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
-                      }`}
-                  >
-                    <FileText className="h-5 w-5" />
-                    <span>Prescriptions</span>
-                  </button>
-                  <button
-                    onClick={() => navigateToSection('settings')}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'settings' ? 'bg-amber-50 text-amber-600' : 'hover:bg-gray-50 text-gray-700'
-                      }`}
-                  >
-                    <Settings className="h-5 w-5" />
-                    <span>Settings</span>
-                  </button>
-                  <Separator className="my-2" />
-                  <button
-                    onClick={() => {
-                      logout();
-                      onNavigate('home');
-                      toast.success('Logged out successfully');
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors hover:bg-red-50 text-red-600"
-                  >
-                    <LogOut className="h-5 w-5" />
-                    <span>Logout</span>
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
+      <div className="flex">
+        {/* Sidebar */}
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-[73px] z-30 h-[calc(100vh-73px)] w-72 bg-white border-r border-gray-200 transition-transform duration-300 shadow-lg flex flex-col overflow-hidden`}>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="p-6">
+              <nav className="space-y-2">
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        navigateToSection(item.id);
+                        setSidebarOpen(false); // Close sidebar on mobile after navigating
+                      }}
+                      className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-xl transition-all duration-200 group ${activeTab === item.id
+                        ? 'bg-linear-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/40 scale-[1.02]'
+                        : 'text-gray-700 hover:bg-linear-to-r hover:from-amber-100 hover:to-orange-100 hover:text-amber-800 hover:shadow-md'
+                        } `}
+                    >
+                      <div className={`p-1.5 rounded-lg ${activeTab === item.id ? 'bg-white/20' : 'bg-amber-100 group-hover:bg-amber-200'} `}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <span className="font-medium text-sm flex-1 text-left">{item.label}</span>
+                      {activeTab === item.id && <ChevronRight className="h-4 w-4 animate-pulse" />}
+                    </button>
+                  );
+                })}
+              </nav>
+
+              <Separator className="my-6" />
+              
+              <div className="space-y-2">
+                <Button
+                  onClick={() => onNavigate('home')}
+                  variant="outline"
+                  className="w-full justify-start text-amber-700 border-amber-200 hover:bg-amber-50 md:hidden"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Home
+                </Button>
+                <button
+                  onClick={() => {
+                    logout();
+                    onNavigate('home');
+                    toast.success('Logged out successfully');
+                  }}
+                  className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl transition-colors hover:bg-red-50 text-red-600 group"
+                >
+                  <div className="p-1.5 rounded-lg bg-red-100 group-hover:bg-red-200">
+                    <LogOut className="h-4 w-4" />
+                  </div>
+                  <span className="font-medium text-sm flex-1 text-left">Logout</span>
+                </button>
+              </div>
+            </div>
           </div>
+        </aside>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
+        {/* Main Content */}
+        <main className="flex-1 transition-all duration-300 min-h-[calc(100vh-73px)] p-6 lg:ml-0">
+          <div className="max-w-4xl mx-auto space-y-6">
+            {/* Overview Tab */}
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Overview</h2>
+                  <p className="text-gray-600">Here's a summary of your recent activity.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">Total Appointments</CardTitle>
+                      <div className="p-2 bg-blue-50 rounded-lg">
+                        <Calendar className="h-5 w-5 text-blue-600" />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-gray-900">{appointments.length}</div>
+                      <Button variant="link" className="px-0 text-blue-600 h-auto mt-2 text-sm font-medium" onClick={() => setActiveTab('appointments')}>
+                        View all <ArrowLeft className="h-3 w-3 ml-1 rotate-180" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">Total Orders</CardTitle>
+                      <div className="p-2 bg-amber-50 rounded-lg">
+                        <Package className="h-5 w-5 text-amber-600" />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-gray-900">{orders.length}</div>
+                      <Button variant="link" className="px-0 text-amber-600 h-auto mt-2 text-sm font-medium" onClick={() => setActiveTab('orders')}>
+                        View all <ArrowLeft className="h-3 w-3 ml-1 rotate-180" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">Prescriptions</CardTitle>
+                      <div className="p-2 bg-green-50 rounded-lg">
+                        <FileText className="h-5 w-5 text-green-600" />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-gray-900">{prescriptions.filter(p => p.userId === user?.id).length}</div>
+                      <Button variant="link" className="px-0 text-green-600 h-auto mt-2 text-sm font-medium" onClick={() => setActiveTab('prescriptions')}>
+                        View all <ArrowLeft className="h-3 w-3 ml-1 rotate-180" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                {/* Recent Activity/Quick Actions placeholder */}
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Quick Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-4">
+                    <Button onClick={() => onNavigate('doctors')} className="bg-blue-600 hover:bg-blue-700 text-white">
+                      Book Appointment
+                    </Button>
+                    <Button onClick={() => onNavigate('medicines')} className="bg-amber-600 hover:bg-amber-700 text-white">
+                      Order Medicine
+                    </Button>
+                    <Button onClick={() => setShowPrescriptionUploadDialog(true)} variant="outline" className="border-green-600 text-green-700 hover:bg-green-50">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Prescription
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             {/* Profile Tab */}
             {activeTab === 'profile' && (
               <Card>
@@ -562,7 +680,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                       <div className="relative group cursor-pointer" onClick={() => setShowProfilePhotoDialog(true)}>
                         <Avatar className="h-24 w-24 ring-4 ring-amber-100 group-hover:ring-amber-300 transition-all">
                           <AvatarImage src={profileImage} />
-                          <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-2xl">
+                          <AvatarFallback className="bg-linear-to-br from-amber-500 to-orange-500 text-white text-2xl">
                             {user.name.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
@@ -623,7 +741,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
                   <Button
                     onClick={handleSaveProfile}
-                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                    className="bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                   >
                     Save Changes
                   </Button>
@@ -650,7 +768,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                       </p>
                       <Button
                         onClick={() => onNavigate('doctors')}
-                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                        className="bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                       >
                         Find Doctors
                       </Button>
@@ -712,7 +830,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                       </p>
                       <Button
                         onClick={() => onNavigate('medicines')}
-                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                        className="bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                       >
                         Browse Medicines
                       </Button>
@@ -747,7 +865,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                         <div className="flex items-center justify-between pt-4 border-t">
                           <div>
                             <p className="text-sm text-gray-500">Total Amount</p>
-                            <p className="text-xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">৳{order.total.toFixed(2)}</p>
+                            <p className="text-xl font-bold bg-linear-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">৳{order.total.toFixed(2)}</p>
                             {order.paymentMethod && (
                               <p className="text-xs text-gray-500 mt-1">
                                 Payment: {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'bKash'}
@@ -799,7 +917,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                           setNewAddress({ type: 'Home', street: '', city: '', district: '', postalCode: '', phone: '' });
                           setShowAddressForm(!showAddressForm);
                         }}
-                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                        className="bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                         size="sm"
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -860,7 +978,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button onClick={handleAddAddress} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
+                        <Button onClick={handleAddAddress} className="bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
                           {editingAddress ? 'Update Address' : 'Save Address'}
                         </Button>
                         <Button onClick={() => {
@@ -1018,7 +1136,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                       <p className="text-gray-600 mb-4">Upload your prescription to get medicines delivered</p>
                       <Button
                         onClick={() => setShowPrescriptionUploadDialog(true)}
-                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                        className="bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
                       >
                         <Upload className="h-4 w-4 mr-2" />
                         Upload Prescription
@@ -1052,7 +1170,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                         <Label>Confirm New Password</Label>
                         <Input type="password" className="mt-1" />
                       </div>
-                      <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
+                      <Button className="bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
                         Update Password
                       </Button>
                     </div>
@@ -1081,7 +1199,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
               </Card>
             )}
           </div>
-        </div>
+        </main>
       </div>
 
       {/* Profile Photo Dialog */}
@@ -1097,7 +1215,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             <div className="flex justify-center">
               <Avatar className="h-32 w-32 ring-4 ring-amber-100">
                 <AvatarImage src={profileImage} />
-                <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-4xl">
+                <AvatarFallback className="bg-linear-to-br from-amber-500 to-orange-500 text-white text-4xl">
                   {user?.name.charAt(0)}
                 </AvatarFallback>
               </Avatar>
@@ -1144,48 +1262,87 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       {/* Prescription Upload Dialog */}
       <Dialog open={showPrescriptionUploadDialog} onOpenChange={setShowPrescriptionUploadDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
-          <DialogHeader className="flex-shrink-0">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5 text-amber-600" />
               Upload Prescription
             </DialogTitle>
             <DialogDescription>
-              Upload your prescription image. Our pharmacist will review and verify it.
+              Upload your prescription image or type the details manually. Our system will analyze it to suggest medicines.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-            <div>
-              <Label>Upload Prescription Image</Label>
-              <p className="text-xs text-gray-500 mt-1 mb-3">
-                Upload a clear image of your prescription. You can crop and adjust it before uploading.
-              </p>
-              <div className="w-full">
-                <ImageUploadWithCrop
-                  currentImage={prescriptionImage}
-                  onImageSelected={(image) => setPrescriptionImage(image)}
-                  aspectRatio={4 / 3}
-                  label=""
+          <div className="space-y-6 overflow-y-auto flex-1 pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label>Upload Image</Label>
+                <p className="text-xs text-gray-500 mt-1 mb-3">
+                  Upload a clear image of your prescription.
+                </p>
+                <div className="w-full">
+                  <ImageUploadWithCrop
+                    currentImage={prescriptionImage}
+                    onImageSelected={(image) => setPrescriptionImage(image)}
+                    aspectRatio={4 / 3}
+                    label=""
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label>Or Type Details</Label>
+                <p className="text-xs text-gray-500 mt-1 mb-3">
+                  Paste or type the medicines listed in your prescription.
+                </p>
+                <Textarea 
+                  value={prescriptionText}
+                  onChange={(e) => setPrescriptionText(e.target.value)}
+                  placeholder="e.g. Paracetamol 500mg, 1+1+1 for 3 days"
+                  className="min-h-[200px]"
                 />
               </div>
             </div>
+
+            {matchedMedicines.length > 0 && (
+              <div className="mt-6 border-t pt-4">
+                <Label className="text-amber-600 flex items-center gap-2 mb-3">
+                  <Heart className="h-4 w-4" /> 
+                  Found matching medicines
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {matchedMedicines.map(med => (
+                    <div key={med.id} className="flex items-center p-3 border rounded-lg hover:border-amber-300 transition-colors bg-amber-50/30 cursor-pointer" onClick={() => {
+                        setShowPrescriptionUploadDialog(false);
+                        onNavigate('medicine-details', { medicineId: med.id });
+                    }}>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900 text-sm">{med.name}</p>
+                        <p className="text-xs text-gray-500">{med.brand} • {med.strength}</p>
+                      </div>
+                      <span className="text-amber-600 text-sm font-medium">৳{med.price}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Actions - Fixed at bottom */}
-          <div className="flex gap-2 justify-end pt-4 border-t mt-4 flex-shrink-0">
+          <div className="flex gap-2 justify-end pt-4 border-t mt-4 shrink-0">
             <Button
               variant="outline"
               onClick={() => {
                 setShowPrescriptionUploadDialog(false);
                 setPrescriptionImage('');
+                setPrescriptionText('');
               }}
             >
               Cancel
             </Button>
             <Button
               onClick={() => {
-                if (!prescriptionImage) {
-                  toast.error('Please upload a prescription image first');
+                if (!prescriptionImage && !prescriptionText.trim()) {
+                  toast.error('Please upload an image or type prescription details');
                   return;
                 }
                 if (!user) {
@@ -1200,18 +1357,19 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
                   image: prescriptionImage,
                   status: 'pending',
                   uploadDate: new Date().toLocaleString(),
-                  notes: '',
+                  notes: prescriptionText,
                 });
 
                 setShowPrescriptionUploadDialog(false);
                 setPrescriptionImage('');
-                toast.success('Prescription uploaded successfully! Our pharmacist will review it soon.');
+                setPrescriptionText('');
+                toast.success('Prescription submitted successfully! Our pharmacist will review it soon.');
               }}
-              disabled={!prescriptionImage}
-              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30"
+              disabled={!prescriptionImage && !prescriptionText.trim()}
+              className="bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30"
             >
               <Upload className="h-4 w-4 mr-2" />
-              Upload Prescription
+              Submit Prescription
             </Button>
           </div>
         </DialogContent>
@@ -1253,7 +1411,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             </div>
             <Button
               onClick={handleRequestRefund}
-              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              className="w-full bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
             >
               Submit Request
             </Button>

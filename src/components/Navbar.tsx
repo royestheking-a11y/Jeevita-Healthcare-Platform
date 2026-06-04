@@ -97,10 +97,10 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
             className="flex items-center gap-2.5 cursor-pointer group"
             onClick={() => onNavigate('home')}
           >
-            <div className="bg-gradient-to-tr from-orange-500 to-amber-500 p-2 rounded-lg shadow-md group-hover:shadow-orange-200 transition-all">
+            <div className="bg-linear-to-tr from-orange-500 to-amber-500 p-2 rounded-lg shadow-md group-hover:shadow-orange-200 transition-all">
               <Heart className="h-5 w-5 text-white fill-white" />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent group-hover:from-orange-700 group-hover:to-amber-700 transition-all">
+            <span className="text-xl font-bold bg-linear-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent group-hover:from-orange-700 group-hover:to-amber-700 transition-all">
               Jeevita
             </span>
           </div>
@@ -204,7 +204,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
               >
                 <ShoppingCart className="h-5 w-5 text-slate-600 group-hover:text-orange-600" />
                 {cartCount > 0 && (
-                  <span className="absolute top-0 right-0 bg-orange-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium min-w-[1.25rem] text-center border-2 border-white">
+                  <span className="absolute top-0 right-0 bg-orange-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium min-w-5 text-center border-2 border-white">
                     {cartCount}
                   </span>
                 )}
@@ -218,14 +218,14 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                   <button className="flex items-center gap-2 ml-3 p-0.5 rounded-full hover:ring-2 hover:ring-orange-100 transition-all">
                     <Avatar className="h-8 w-8 ring-2 ring-white shadow-sm">
                       <AvatarImage src={user.profileImage} />
-                      <AvatarFallback className="bg-gradient-to-tr from-orange-500 to-amber-500 text-white text-xs font-medium">
+                      <AvatarFallback className="bg-linear-to-tr from-orange-500 to-amber-500 text-white text-xs font-medium">
                         {user.name.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 mt-1 border border-orange-100 shadow-lg rounded-xl">
-                  <div className="px-3 py-2.5 bg-orange-50/50 border-b border-orange-100">
+                <DropdownMenuContent align="end" className="w-56 mt-1 bg-white border border-orange-100 shadow-lg rounded-xl">
+                  <div className="px-3 py-2.5 bg-orange-50 border-b border-orange-100">
                     <p className="font-medium text-slate-900 text-sm truncate">{user.name}</p>
                     <p className="text-xs text-slate-500 truncate">{user.email}</p>
                   </div>
@@ -262,7 +262,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                 </Button>
                 <Button
                   onClick={() => onNavigate('signup')}
-                  className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-md shadow-orange-200 border-0"
+                  className="bg-linear-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-md shadow-orange-200 border-0"
                 >
                   {t('nav.signup')}
                 </Button>
@@ -375,7 +375,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                 <div className="space-y-1 mt-2 pt-2 border-t border-orange-100">
                   <div className="flex items-center gap-3 px-4 py-3">
                     <Avatar className="h-10 w-10 ring-2 ring-orange-100">
-                      <AvatarFallback className="bg-gradient-to-tr from-orange-500 to-amber-500 text-white font-semibold">
+                      <AvatarFallback className="bg-linear-to-tr from-orange-500 to-amber-500 text-white font-semibold">
                         {user.name.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
@@ -453,7 +453,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                       onNavigate('signup');
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-md"
+                    className="w-full bg-linear-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-md"
                   >
                     {t('nav.signup')}
                   </Button>
